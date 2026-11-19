@@ -271,6 +271,7 @@
     .comandi input[type=range] { width: 80px; }
     .comandi > span { display: none; }
     .etichetta span { display: none; }
+    .etichetta strong { font-size: 16px; }
     .esploso .nota.n2 { display: none; }
   }
 
@@ -1117,24 +1118,49 @@ esp.dopo = () => {
   vOrigine.set(0, 0, 0).project(esp.camera);
   const ox = (vOrigine.x + 1) / 2 * esp.w, oy = (1 - vOrigine.y) / 2 * esp.h;
 
-  partiEsploso.forEach((p) => {
+  // primo giro: dove sta ogni pezzo sullo schermo
+  const voci = partiEsploso.map((p) => {
     if (!p.lw) { p.lw = p.etichetta.offsetWidth; p.lh = p.etichetta.offsetHeight; }
-
     p.mesh.localToWorld(vTmp.copy(p.centro)).project(esp.camera);
     const x = clamp((vTmp.x + 1) / 2 * esp.w, BORDO, esp.w - BORDO);
     const y = clamp((1 - vTmp.y) / 2 * esp.h, BORDO, esp.h - BORDO);
+    return { p, x, y };
+  });
 
-    let dx = x - ox, dy = y - oy;
-    const l = Math.hypot(dx, dy);
-    if (l < 2) { dx = 0; dy = -1; } else { dx /= l; dy /= l; }
-    const sinistra = dx < 0;
-    const lx = x + dx * p.off, ly = y + dy * p.off;
-    const left = clamp(sinistra ? lx - 8 - p.lw : lx + 8, BORDO, esp.w - p.lw - BORDO);
-    const top = clamp(ly - p.lh / 2, SPAZIO_ALTO, esp.h - p.lh - SPAZIO_BASSO);
+  if (esp.w < 640) {
+    // TELEFONO: il riquadro è stretto, l'occhiale occupa tutta la larghezza.
+    // Le etichette vanno in righe sopra e sotto l'occhiale, una per riga, così non si toccano mai.
+    const sopra = voci.filter((v) => v.y <= oy).sort((a, b) => a.y - b.y);
+    const sotto = voci.filter((v) => v.y > oy).sort((a, b) => a.y - b.y);
+    const riga = (v) => v.p.lh + 6;
+    let base = Math.min(...sopra.map((v) => v.y), oy) - 40;
+    for (let i = sopra.length - 1; i >= 0; i--) { base -= riga(sopra[i]); sopra[i].top = Math.max(base, SPAZIO_ALTO); }
+    let giu = Math.max(...sotto.map((v) => v.y), oy) + 40;
+    sotto.forEach((v) => { v.top = Math.min(giu, esp.h - SPAZIO_BASSO - v.p.lh); giu += riga(v); });
+    voci.forEach((v) => {
+      v.sinistra = false;
+      v.left = clamp(v.x - v.p.lw / 2, BORDO, esp.w - v.p.lw - BORDO);
+      v.x2 = clamp(v.x, v.left + 4, v.left + v.p.lw - 4);
+      v.y2 = v.y <= oy ? v.top + v.p.lh + 2 : v.top - 2;
+    });
+  } else {
+    // COMPUTER: ogni etichetta si allontana dal centro nella direzione del suo pezzo
+    voci.forEach((v) => {
+      const { p, x, y } = v;
+      let dx = x - ox, dy = y - oy;
+      const l = Math.hypot(dx, dy);
+      if (l < 2) { dx = 0; dy = -1; } else { dx /= l; dy /= l; }
+      v.sinistra = dx < 0;
+      const lx = x + dx * p.off, ly = y + dy * p.off;
+      v.left = clamp(v.sinistra ? lx - 8 - p.lw : lx + 8, BORDO, esp.w - p.lw - BORDO);
+      v.top = clamp(ly - p.lh / 2, SPAZIO_ALTO, esp.h - p.lh - SPAZIO_BASSO);
+      v.x2 = x < v.left + p.lw / 2 ? v.left - 6 : v.left + p.lw + 6;
+      v.y2 = clamp(y, v.top + 4, v.top + p.lh - 4);
+    });
+  }
 
-    const x2 = x < left + p.lw / 2 ? left - 6 : left + p.lw + 6;
-    const y2 = clamp(y, top + 4, top + p.lh - 4);
-
+  // secondo giro: disegna etichette e linee
+  voci.forEach(({ p, x, y, sinistra, left, top, x2, y2 }) => {
     const attiva = p.id === evidenziata;
     p.etichetta.style.opacity = attiva ? 1 : vis;
     p.etichetta.classList.toggle('attiva', attiva);
