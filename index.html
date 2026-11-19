@@ -217,10 +217,13 @@
   .barra-scroll span { display: block; height: 100%; width: 0; background: var(--blu); }
   @media (max-width: 860px) {
     .movimento-testa, .movimento-griglia { grid-template-columns: 1fr; }
-    .scena-fissa { top: 70px; height: 46vh; order: -1; z-index: 1; }
-    .passi { position: relative; z-index: 2; }
-    .passo { min-height: 60vh; justify-content: flex-end; padding-bottom: 6vh; opacity: 1; }
-    .passo > * { background: var(--ghiaccio); }
+    /* su telefono l'occhiale resta in alto e il testo gli scorre SOTTO (non sopra) */
+    .scena-fissa {
+      top: 62px; height: 46vh; order: -1; z-index: 3;
+      box-shadow: 0 0 0 10px var(--ghiaccio), 0 26px 22px -4px var(--ghiaccio);
+    }
+    .passi { position: relative; z-index: 1; }
+    .passo { min-height: 72vh; justify-content: flex-end; padding-bottom: 8vh; opacity: 1; }
   }
 
   /* ===== 4. ESPLOSO ===== */
@@ -308,6 +311,13 @@
     .viste-testa { grid-template-columns: 1fr; }
     .viste-area { height: 70vh; }
     .viste-stato { display: none; }
+    /* parole più piccole: tre in alto, tre in basso, così non si toccano e non coprono l'occhiale */
+    .parola-vista { font-size: 19px; padding: 5px 10px; }
+    .pv-prospettiva, .pv-fronte, .pv-alto { top: 14px; }
+    .pv-prospettiva, .pv-sinistra { left: 12px; }
+    .pv-fronte, .pv-destra { right: 12px; }
+    .pv-sinistra, .pv-destra, .pv-basso { top: auto; bottom: 14px; transform: none; }
+    .pv-basso { left: 50%; transform: translateX(-50%); }
   }
 
   /* ===== 6. PROVA TU: l'occhiale sul tuo viso, con la fotocamera ===== */
@@ -354,6 +364,7 @@
   @media (max-width: 860px) {
     .prova-testa { grid-template-columns: 1fr; }
     .prova-area { height: 75vh; }
+    .prova-inizio .grande { font-size: 26px; }
     .prova-area .comandi { gap: 8px; padding-left: 12px; }
     .prova-area .comandi input[type=range] { width: 64px; }
   }
@@ -606,6 +617,9 @@ const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 const lerp = (a, b, t) => a + (b - a) * t;
 const morbido = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 const soloTatto = matchMedia('(hover: none)').matches;
+
+// su telefono non si può "passare sopra": le schede si girano toccandole
+if (soloTatto) document.querySelectorAll('.carta-faccia.davanti span').forEach((s) => { s.textContent = 'tocca ↻'; });
 
 
 // ===== testi che compaiono scorrendo =====
