@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pubblica su Instagram – Occhiali della classe</title>
+  <!--
+    instagram.html – la pagina che si apre sul TELEFONO inquadrando il QR code del computer.
+    È volutamente leggerissima (niente 3D, niente resto del sito): deve solo
+      1. ricevere la foto dal computer (collegamento diretto WebRTC con PeerJS, la foto non passa da server)
+      2. salvarla nella galleria del telefono
+      3. aprire l'app di Instagram sulla fotocamera, dove si sceglie STORIA o POST
+    L'indirizzo arriva dal QR: instagram.html?ricevi=<codice del computer>&ig=storia (oppure post)
+  -->
+  <style>
+    :root {
+      --nero: #1d1d1b;
+      --beige: #ece8e1;
+      --linea: #e2ddd3;
+      --oro: #aa8e62;
+      --instagram: linear-gradient(45deg, #f9ce34, #ee2a7b, #6228d7);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      font: normal 16px/24px Roboto, Helvetica, sans-serif;
+      color: var(--nero);
+      background-color: #ffffff;
+    }
+
+    main {
+      max-width: 460px;
+      margin: 0 auto;
+      padding: 28px 18px 40px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .etichetta {
+      margin: 0;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--oro);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1.15;
+    }
+
+    /* il riquadro della foto: mentre aspetta mostra lo stato */
+    .cornice {
+      display: grid;
+      place-items: center;
+      min-height: 260px;
+      background: radial-gradient(circle at 50% 42%, #faf8f4 0%, var(--beige) 60%, #ddd6ca 100%);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .cornice img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .stato {
+      margin: 0;
+      padding: 24px;
+      text-align: center;
+      color: rgba(0, 0, 0, 0.6);
+    }
+
+    /* il pallino che pulsa mentre aspetta */
+    .stato.attesa::before {
+      content: "";
+      display: block;
+      width: 10px;
+      height: 10px;
+      margin: 0 auto 12px auto;
+      border-radius: 50%;
+      background-color: #e06a35;
+      animation: pulsa 1.4s ease-in-out infinite;
+    }
+
+    @keyframes pulsa {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: 0.35; transform: scale(0.7); }
+    }
+
+    /* il bottone grande "Apri Instagram" */
+    .apri {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 18px 20px;
+      font: inherit;
+      font-size: 18px;
+      font-weight: bold;
+      color: #ffffff;
+      background: var(--instagram);
+      border: none;
+      border-radius: 999px;
+      box-shadow: 0 10px 26px rgba(238, 42, 123, 0.35);
+      cursor: pointer;
+    }
+
+    .apri:active {
+      transform: scale(0.98);
+    }
+
+    .spiegazione {
+      margin: 0;
+      font-size: 14px;
+      text-align: center;
+      color: rgba(0, 0, 0, 0.65);
+    }
+
+    .avviso {
+      margin: 0;
+      padding: 12px 14px;
+      font-size: 14px;
+      background-color: var(--beige);
+      border-radius: 10px;
+    }
+
+    .secondari {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .secondario {
+      padding: 10px 16px;
+      font: inherit;
+      font-size: 14px;
+      color: rgba(0, 0, 0, 0.75);
+      background-color: #ffffff;
+      border: solid 1px var(--linea);
+      border-radius: 999px;
+      cursor: pointer;
+    }
+
+    [hidden] { display: none !important; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .stato.attesa::before { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="etichetta" id="etichetta">Instagram</p>
+    <h1 id="titolo">La tua foto</h1>
+
+    <div class="cornice">
+      <img id="foto" alt="La foto scattata sul computer" hidden>
+      <p class="stato attesa" id="stato" role="status">Mi collego al computer…</p>
+    </div>
+
+    <!-- compaiono quando la foto è arrivata -->
+    <button type="button" class="apri" id="apri" hidden>
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.3" cy="6.7" r="1.2" fill="currentColor"/></svg>
+      Apri Instagram
+    </button>
+    <p class="spiegazione" id="spiegazione" hidden></p>
+    <p class="avviso" id="avviso" role="status" hidden></p>
+
+    <div class="secondari" id="secondari" hidden>
+      <button type="button" class="secondario" id="solo-apri">Apri solo l'app</button>
+      <button type="button" class="secondario" id="altre-app">Altre app</button>
+    </div>
+  </main>
+
+  <!-- PeerJS: il collegamento diretto col computer -->
+  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script>
+    const parametri = new URLSearchParams(location.search);
+    const codice = parametri.get('ricevi');
+    const modo = parametri.get('ig') === 'post' ? 'post' : 'storia';
+    const NOME_MODO = modo === 'storia' ? 'Storia' : 'Post';
+
+    const stato = document.getElementById('stato');
+    const foto = document.getElementById('foto');
+    const apri = document.getElementById('apri');
+    const spiegazione = document.getElementById('spiegazione');
+    const avviso = document.getElementById('avviso');
+
+    // che telefono è: cambia il modo di salvare la foto e di aprire l'app
+    const eIPhone = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const eAndroid = /Android/i.test(navigator.userAgent);
+
+    let file = null;     // la foto arrivata
+
+    document.getElementById('etichetta').textContent = 'Instagram · ' + NOME_MODO;
+
+    // il link che apre l'app di Instagram sulla sua fotocamera (in basso si sceglie STORIA o POST)
+    function linkApp() {
+      if (eAndroid) {
+        // su Android: se l'app non c'è, si apre il sito di Instagram
+        return 'intent://camera#Intent;scheme=instagram;package=com.instagram.android;S.browser_fallback_url=' +
+          encodeURIComponent('https://www.instagram.com/') + ';end';
+      }
+      return 'instagram://camera';
+    }
+
+    function mostraAvviso(testo) {
+      avviso.textContent = testo;
+      avviso.hidden = false;
+    }
+
+    // apre l'app; se dopo un attimo la pagina è ancora davanti, l'app non si è aperta
+    function apriApp() {
+      let andatoVia = false;
+      function quandoEsce() { if (document.hidden) andatoVia = true; }
+      document.addEventListener('visibilitychange', quandoEsce);
+      setTimeout(function() {
+        document.removeEventListener('visibilitychange', quandoEsce);
+        if (!andatoVia && !document.hidden) {
+          mostraAvviso('Non riesco ad aprire l\'app di Instagram: è installata? Aprila tu: la foto è la prima della galleria.');
+        }
+      }, 2000);
+      window.location.href = linkApp();
+    }
+
+    // salva la foto nella galleria del telefono
+    async function salvaFoto() {
+      // iPhone: un sito può mettere una foto in Foto solo passando dal menu ("Salva immagine")
+      if (eIPhone && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file] });      // se chiudi il menu, qui arriva un errore "AbortError"
+        return;
+      }
+      // Android e gli altri: si scarica, e appare nella galleria
+      const link = document.createElement('a');
+      link.href = foto.src;
+      link.download = file.name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      await new Promise(function(r) { setTimeout(r, 700); });   // un attimo per far partire il salvataggio
+    }
+
+    // UN tocco: salva la foto e apre Instagram
+    apri.addEventListener('click', async function() {
+      if (!file) return;
+      avviso.hidden = true;
+      try {
+        await salvaFoto();
+      } catch (errore) {
+        if (errore.name === 'AbortError') {
+          mostraAvviso('Per metterla su Instagram, nel menu tocca «Salva immagine». Poi si apre l\'app.');
+          return;
+        }
+        console.error(errore);
+      }
+      apriApp();
+    });
+
+    document.getElementById('solo-apri').addEventListener('click', apriApp);
+
+    document.getElementById('altre-app').addEventListener('click', async function() {
+      if (!file || !navigator.canShare || !navigator.canShare({ files: [file] })) return;
+      try { await navigator.share({ files: [file] }); } catch (errore) { /* menu chiuso */ }
+    });
+
+    // la foto è arrivata: si mostra con il bottone
+    function fotoArrivata(blob, nome, occhiale) {
+      file = new File([blob], nome || 'prova-occhiali.jpg', { type: blob.type || 'image/jpeg' });
+      foto.src = URL.createObjectURL(blob);
+      foto.hidden = false;
+      stato.hidden = true;
+      if (occhiale) document.getElementById('titolo').textContent = 'Occhiali di ' + occhiale;
+
+      spiegazione.textContent = (eIPhone ? 'Nel menu tocca «Salva immagine»: poi si apre Instagram. ' : '') +
+        'In Instagram scegli ' + NOME_MODO.toUpperCase() + ' in basso e prendi la prima foto della galleria.';
+      apri.hidden = false;
+      spiegazione.hidden = false;
+      document.getElementById('secondari').hidden = false;
+      document.getElementById('altre-app').hidden = !(navigator.canShare && navigator.canShare({ files: [file] }));
+    }
+
+    function errore(testo) {
+      stato.classList.remove('attesa');
+      stato.textContent = testo;
+    }
+
+    // ----- il collegamento col computer -----
+    if (!codice) {
+      errore('Inquadra il QR code che compare sul computer dopo aver scelto Instagram → Storia o Post.');
+    } else if (!window.Peer) {
+      errore('Non è stato possibile caricare il collegamento. Controlla la connessione e inquadra di nuovo il codice.');
+    } else {
+      const attesa = setTimeout(function() {
+        if (!file) errore('Non riesco a collegarmi al computer. Controlla che la pagina sia ancora aperta lì; se il problema resta, collega telefono e computer alla stessa rete Wi-Fi e inquadra di nuovo il codice.');
+      }, 20000);
+
+      const peer = new Peer();
+      peer.on('open', function() {
+        stato.textContent = 'Ricevo la foto…';
+        const connessione = peer.connect(codice, { reliable: true });
+        connessione.on('data', function(messaggio) {
+          if (!messaggio || !messaggio.foto) return;
+          clearTimeout(attesa);
+          fotoArrivata(new Blob([messaggio.foto], { type: messaggio.tipo || 'image/jpeg' }), messaggio.nome, messaggio.occhiale);
+          connessione.send({ ricevuta: true });          // il computer scrive "Foto arrivata ✓"
+          setTimeout(function() { peer.destroy(); }, 1500);
+        });
+      });
+      peer.on('error', function(e) {
+        console.error(e);
+        if (!file) errore('Il collegamento non è riuscito: controlla che la pagina sia ancora aperta sul computer e inquadra di nuovo il codice.');
+      });
+    }
+  </script>
+</body>
+</html>
