@@ -1,0 +1,9 @@
+# Online va SOLO il sito Orizzonte: index.html (la pagina), il modello e .nojekyll.
+# Tutto il resto della cartella resta solo sul computer.
+/*
+!/.gitignore
+!/.nojekyll
+!/index.html
+/models copia/*
+!/models copia/camilasaraviaruizcorretto.glb
+.DS_Store
