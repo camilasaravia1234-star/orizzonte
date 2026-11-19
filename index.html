@@ -1,444 +1,1546 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Triennale Milano – Luce del Nord</title>
-  <link rel="stylesheet" href="css/bootstrap-grid.css">
-  <link rel="stylesheet" href="css/stile_esercizio4.css">
-  <link rel="stylesheet" href="css/configuratore.css">
-  <!-- Three.js da CDN: "three" è la libreria, "three/addons/" sono gli strumenti extra (controlli, loader...) -->
-  <!-- un vecchio QR code (index.html?ricevi=...) va alla pagina leggera di Instagram, prima che parta il 3D -->
-  <script>
-    if (new URLSearchParams(location.search).has('ricevi')) location.replace('instagram.html' + location.search);
-  </script>
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
-        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
-      }
-    }
-  </script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orizzonte — Camila Saravia Ruiz</title>
+<meta name="description" content="Orizzonte: occhiale a maschera con lente trasparente e aste azzurre. Un progetto di Camila Saravia Ruiz.">
 
-  <!-- i nostri JavaScript (partono quando l'HTML è pronto) -->
-  <script src="js/menu.js" defer></script>
-  <script type="module" src="js/configuratore.js"></script>
-  <script type="module" src="js/occhiali.js"></script>
-  <script type="module" src="js/galleria.js"></script>
+<!-- Font:
+     Bricolage Grotesque → titoli e frasi (variabile: peso e larghezza cambiano col mouse)
+     Roboto Flex     → il nome "Orizzonte", che si allarga col mouse
+     Instrument Sans → testi piccoli
+     Caveat          → le note scritte a mano -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,200..800&family=Roboto+Flex:opsz,wdth,wght@8..144,25..151,100..1000&family=Instrument+Sans:wght@400;500;600&family=Caveat:wght@500;600&display=swap" rel="stylesheet">
+
+<!-- Three.js da CDN (stessa versione del resto del sito) -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+
+<style>
+  :root {
+    --ghiaccio: #E4EDF3;          /* il colore di casa */
+    --ghiaccio-chiaro: #F3F7FA;
+    --ghiaccio-scuro: #CDDBE6;
+    --inchiostro: #0F1E3A;
+    --blu: #2457FF;               /* blu acceso */
+    --cobalto-notte: #12308F;    /* fondo delle viste */
+    --blu-scuro: #1B3FCC;
+    --azzurro: #8EC3E8;           /* il colore delle aste */
+    --su-blu: #D3DFFF;            /* testo secondario sul blu */
+    --grigio: #5A6B82;
+    --colore-aste: #7DB7E3;       /* cambia quando provi un colore */
+    --serif: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif;
+    --nome: "Roboto Flex", "Helvetica Neue", Arial, sans-serif;
+    --sans: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+    --mano: "Caveat", "Comic Sans MS", cursive;
+    --lato: max(18px, 4vw);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--sans); font-size: 16px;
+    background: var(--ghiaccio); color: var(--inchiostro);
+    -webkit-font-smoothing: antialiased; overflow-x: hidden;
+  }
+  a { color: inherit; text-decoration: none; }
+  canvas { display: block; width: 100%; height: 100%; }
+  ::selection { background: var(--blu); color: #fff; }
+
+  /* le righe interattive non vanno MAI a capo */
+  [data-flex] { white-space: nowrap; }
+  [data-flex] .parola { white-space: nowrap; }
+
+  .indice { font-family: var(--serif); font-size: 18px; color: var(--blu); }
+  .piccolo { font-size: 14px; color: var(--grigio); line-height: 1.5; margin-top: 4px; }
+  .nota {
+    font-family: var(--mano); font-size: 27px; font-weight: 600; color: var(--blu); line-height: 1.05;
+    position: absolute; pointer-events: none; white-space: nowrap;
+  }
+  .adesivo {
+    display: inline-block; font-family: var(--mano); font-size: 25px; font-weight: 600; line-height: 1;
+    padding: 10px 18px 8px; border-radius: 999px; background: var(--blu); color: #fff;
+  }
+  .titolo {
+    font-family: var(--serif); font-size: clamp(30px, 5vw, 68px); line-height: 1.04; letter-spacing: -.02em;
+  }
+  em { font-style: normal; }
+  .titolo em { color: var(--blu); }
+
+  .rivela { opacity: 0; transform: translateY(30px); transition: opacity 1s ease, transform 1s cubic-bezier(.2, .7, .2, 1); }
+  .rivela.dentro { opacity: 1; transform: none; }
+
+  /* ===== cursore con etichetta: dice cosa puoi fare ===== */
+  .cursore {
+    position: fixed; left: 0; top: 0; z-index: 200; pointer-events: none;
+    padding: 0; border-radius: 999px; background: var(--blu); color: #fff;
+    font-family: var(--serif); font-size: 16px; white-space: nowrap;
+    width: 12px; height: 12px; margin: -6px 0 0 -6px; overflow: hidden;
+    transition: width .3s ease, height .3s ease, margin .3s ease, padding .3s ease, opacity .3s;
+    display: flex; align-items: center; justify-content: center; opacity: 0;
+  }
+  .cursore span { opacity: 0; transition: opacity .2s; }
+  .cursore.visibile { opacity: 1; }
+  .cursore.con-testo { width: auto; height: 38px; margin: 14px 0 0 14px; padding: 0 16px; }
+  .cursore.con-testo span { opacity: 1; }
+  @media (hover: none) { .cursore { display: none; } }
+
+  /* ===== navigazione ===== */
+  .nav {
+    position: fixed; inset: 0 0 auto 0; z-index: 50; height: 62px; padding: 0 var(--lato);
+    display: flex; align-items: center; justify-content: space-between; background: var(--ghiaccio);
+  }
+  .nav .autrice { font-family: var(--serif); font-size: 20px; font-variation-settings: "wght" 450, "opsz" 48; }
+  .nav .autrice em { color: var(--blu); }
+  .nav ul { display: flex; gap: 26px; list-style: none; font-size: 15px; align-items: center; }
+  .nav ul a { position: relative; }
+  .nav ul a::after { content: ""; position: absolute; left: 0; right: 100%; bottom: -3px; height: 2px; background: var(--blu); transition: right .3s ease; }
+  .nav ul a:hover::after { right: 0; }
+  .nav ul a.torna { background: var(--blu); color: #fff; padding: 8px 16px; border-radius: 999px; }
+  .nav ul a.torna::after { display: none; }
+  .nav ul a.torna:hover { background: var(--blu-scuro); }
+  @media (max-width: 760px) { .nav ul li:not(:last-child) { display: none; } }
+
+  /* ===== 1. HERO ===== */
+  .hero { position: relative; padding: 96px var(--lato) 0; }
+  .hero-griglia { display: grid; grid-template-columns: 32% 1fr; gap: 3vw; align-items: stretch; }
+  .hero-sinistra { display: flex; flex-direction: column; justify-content: space-between; padding: 10px 0 10px; }
+  .hero-frase { font-family: var(--serif); font-size: clamp(28px, 3.2vw, 46px); line-height: 1.08; letter-spacing: -.015em; margin-top: 18px; font-variation-settings: "wght" 350, "opsz" 48; }
+  .hero-frase em { color: var(--blu); }
+  .hero-info { list-style: none; margin-top: 40px; }
+  .hero-info li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1.5px solid var(--ghiaccio-scuro); font-size: 14px; }
+  .hero-info li span:first-child { color: var(--grigio); }
+  .hero-scena {
+    position: relative; height: min(62vh, 620px); min-height: 380px; border-radius: 36px; overflow: hidden;
+    background: var(--blu);
+  }
+  .hero-scena .palco { position: absolute; inset: 0; opacity: 0; transition: opacity 1.6s ease; }
+  .hero.pronto .hero-scena .palco { opacity: 1; }
+  .lato-adesivo {
+    position: absolute; top: 22px; left: 22px; background: var(--azzurro); color: var(--inchiostro);
+    transition: opacity .45s ease, transform .45s ease; transform: rotate(-4deg);
+  }
+  .lato-adesivo.nascosto { opacity: 0; transform: rotate(-4deg) translateY(-8px) scale(.9); }
+  .puntini-hero { position: absolute; right: 26px; bottom: 24px; display: flex; gap: 8px; }
+  .puntini-hero i { width: 9px; height: 9px; border-radius: 50%; background: rgba(255, 255, 255, .35); transition: background .3s, transform .3s; }
+  .puntini-hero i.attivo { background: #fff; transform: scale(1.3); }
+  .hero-scena .caricamento { position: absolute; inset: 0; display: grid; place-items: center; color: var(--su-blu); font-size: 15px; transition: opacity .6s; }
+  .hero.pronto .caricamento { opacity: 0; pointer-events: none; }
+  .hero-nome-riga { position: relative; margin-top: 6px; font-size: clamp(66px, 13vw, 210px); overflow: hidden; }
+  .hero-nome {
+    font-family: var(--nome); font-size: 1em; line-height: 1.02; letter-spacing: -.04em; display: inline-block;
+    font-variation-settings: "wght" 250, "wdth" 100; color: var(--inchiostro);
+  }
+  .hero .nota.n1 { right: 3%; top: 26%; transform: rotate(-5deg); }
+  @media (max-width: 860px) {
+    .hero-griglia { grid-template-columns: 1fr; }
+    .hero-info, .hero .nota.n1 { display: none; }
+  }
+
+  /* ===== striscia che scorre ===== */
+  .striscia {
+    margin-top: 50px; overflow: hidden; white-space: nowrap; background: var(--blu); color: #fff;
+    padding: 18px 0; transform: rotate(-1.4deg); width: 104%; margin-left: -2%;
+  }
+  .striscia-dentro { display: inline-flex; align-items: center; animation: scorri 36s linear infinite; }
+  .striscia span { font-family: var(--serif); font-size: clamp(26px, 3vw, 40px); font-variation-settings: "wght" 300, "opsz" 48; padding: 0 26px; }
+  .striscia i { width: 12px; height: 12px; border-radius: 50%; background: var(--azzurro); flex: none; }
+  .striscia:hover .striscia-dentro { animation-play-state: paused; }
+  @keyframes scorri { to { transform: translateX(-50%); } }
+
+  /* ===== 2. CONCEPT ===== */
+  .concept { padding: 150px var(--lato) 140px; position: relative; }
+  .concept-griglia { display: grid; grid-template-columns: 1fr 2.6fr; gap: 4vw; }
+  .concept-testo {
+    font-family: var(--serif); font-size: clamp(26px, 3.3vw, 48px); line-height: 1.18; letter-spacing: -.015em;
+    font-variation-settings: "wght" 320, "opsz" 48;
+  }
+  .concept-testo em { color: var(--blu); }
+  .concept-testo .pastiglia {
+    display: inline-block; width: 1.5em; height: .72em; border-radius: 999px; vertical-align: .02em; margin: 0 .1em;
+    background: var(--colore-aste); transition: background .4s;
+  }
+  .concept-testo .pastiglia.vetro { background: var(--ghiaccio-chiaro); border: 2px solid var(--ghiaccio-scuro); }
+  .concept-sotto { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3vw; margin-top: 80px; }
+  /* schede che si girano al passaggio del mouse */
+  .carta { perspective: 900px; height: 230px; }
+  .carta-dentro { position: relative; height: 100%; transition: transform .7s cubic-bezier(.2, .7, .2, 1); transform-style: preserve-3d; }
+  .carta:hover .carta-dentro, .carta:focus-within .carta-dentro { transform: rotateY(180deg); }
+  .carta-faccia {
+    position: absolute; inset: 0; border-radius: 28px; padding: 26px; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .carta-faccia.davanti { background: var(--ghiaccio-chiaro); }
+  .carta-faccia.davanti h3 { font-family: var(--serif); font-weight: normal; font-size: 34px; color: var(--blu); }
+  .carta-faccia.davanti span { font-size: 13px; color: var(--grigio); }
+  .carta-faccia.dietro { background: var(--blu); color: #fff; transform: rotateY(180deg); }
+  .carta-faccia.dietro p { font-family: var(--serif); font-size: 22px; line-height: 1.3; font-variation-settings: "wght" 350, "opsz" 48; }
+  .carta-faccia.dietro span { font-size: 13px; color: var(--su-blu); }
+  .concept .adesivo { position: absolute; right: 8vw; top: 110px; transform: rotate(7deg); }
+  .misure {
+    margin-top: 90px; font-family: var(--serif); font-size: clamp(22px, 2.4vw, 34px); line-height: 1.35;
+    font-variation-settings: "wght" 300, "opsz" 48; max-width: 1000px;
+  }
+  .misure b { font-family: var(--nome); font-weight: normal; font-variation-settings: "wght" 650, "wdth" 100; color: var(--blu); }
+  @media (max-width: 860px) {
+    .concept-griglia, .concept-sotto { grid-template-columns: 1fr; }
+    .concept .adesivo { top: 60px; }
+  }
+
+  /* ===== 3. MOVIMENTO ===== */
+  .movimento { padding: 60px var(--lato) 0; }
+  .movimento-testa { display: grid; grid-template-columns: 1fr 2.6fr; gap: 4vw; margin-bottom: 30px; }
+  .movimento-griglia { display: grid; grid-template-columns: 1fr 1.25fr; gap: 4vw; position: relative; }
+  .passi { padding-bottom: 30vh; }
+  .passo { min-height: 78vh; display: flex; flex-direction: column; justify-content: center; max-width: 440px; opacity: .3; transition: opacity .5s; }
+  .passo.attivo { opacity: 1; }
+  .passo .indice { font-size: 20px; }
+  .passo h3 {
+    font-family: var(--serif); font-weight: normal; font-size: clamp(30px, 3.4vw, 50px); line-height: 1.05; letter-spacing: -.02em;
+    font-variation-settings: "wght" 330, "opsz" 48; margin: 10px 0 14px;
+  }
+  .passo h3 em { color: var(--blu); }
+  .passo p { font-size: 17px; line-height: 1.6; color: var(--grigio); }
+  .scena-fissa {
+    position: sticky; top: 82px; height: calc(100vh - 110px); border-radius: 36px; overflow: hidden; background: var(--ghiaccio-chiaro);
+  }
+  .scena-fissa .palco { position: absolute; inset: 0; }
+  .barra-scroll { position: absolute; left: 26px; right: 26px; bottom: 24px; height: 4px; border-radius: 4px; background: var(--ghiaccio-scuro); overflow: hidden; }
+  .barra-scroll span { display: block; height: 100%; width: 0; background: var(--blu); }
+  @media (max-width: 860px) {
+    .movimento-testa, .movimento-griglia { grid-template-columns: 1fr; }
+    /* su telefono l'occhiale resta in alto e il testo gli scorre SOTTO (non sopra) */
+    .scena-fissa {
+      top: 62px; height: 46vh; order: -1; z-index: 3;
+      box-shadow: 0 0 0 10px var(--ghiaccio), 0 26px 22px -4px var(--ghiaccio);
+    }
+    .passi { position: relative; z-index: 1; }
+    .passo { min-height: 72vh; justify-content: flex-end; padding-bottom: 8vh; opacity: 1; }
+  }
+
+  /* ===== 4. ESPLOSO ===== */
+  .esploso { padding: 140px var(--lato) 120px; position: relative; }
+  .esploso-testa { display: grid; grid-template-columns: 1fr 2.6fr; gap: 4vw; align-items: end; }
+  .esploso-testa .piccolo { max-width: 260px; }
+  .esploso-palco {
+    position: relative; height: min(80vh, 780px); margin-top: 44px; border-radius: 36px; overflow: hidden; cursor: grab;
+    background: var(--blu); color: #fff;
+  }
+  .esploso-palco:active { cursor: grabbing; }
+  .esploso-palco.sopra { cursor: pointer; }
+  .esploso-palco svg, .esploso-palco .etichette { position: absolute; inset: 0; pointer-events: none; }
+  .esploso-palco svg { width: 100%; height: 100%; }
+  .esploso-palco line { stroke: #fff; stroke-opacity: .6; stroke-width: 1.2; }
+  .esploso-palco circle { fill: #fff; }
+  .esploso-palco .attiva-linea line { stroke: var(--azzurro); stroke-opacity: 1; stroke-width: 2; }
+  .esploso-palco .attiva-linea circle { fill: var(--azzurro); }
+  .etichetta { position: absolute; left: 0; top: 0; white-space: nowrap; will-change: transform; display: flex; flex-direction: column; gap: 1px; }
+  .etichetta strong { font-family: var(--serif); font-weight: normal; font-size: 21px; font-variation-settings: "wght" 420, "opsz" 48; transition: color .25s; }
+  .etichetta span { font-size: 12.5px; color: var(--su-blu); }
+  .etichetta.attiva strong { color: var(--azzurro); }
+  .etichetta.destra-allineata { text-align: right; }
+  .esploso-palco .titolo-palco { position: absolute; left: 26px; top: 20px; font-family: var(--mano); font-size: 28px; color: var(--azzurro); pointer-events: none; transform: rotate(-3deg); }
+  .comandi {
+    position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 14px; padding: 7px 7px 7px 20px; white-space: nowrap;
+    background: #fff; color: var(--grigio); border-radius: 999px; font-size: 14px;
+  }
+  .comandi input[type=range] { width: 130px; accent-color: var(--blu); }
+  .comandi button {
+    font-family: var(--serif); font-size: 17px; color: #fff; background: var(--inchiostro);
+    border: 0; border-radius: 999px; padding: 8px 22px; cursor: pointer; transition: background .2s;
+  }
+  .comandi button:hover { background: var(--blu-scuro); }
+  .pezzi { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; list-style: none; }
+  .pezzi button {
+    font: inherit; font-size: 15px; color: var(--inchiostro); background: transparent; cursor: pointer;
+    border: 2px solid var(--ghiaccio-scuro); border-radius: 999px; padding: 8px 16px; transition: background .2s, border-color .2s, color .2s;
+  }
+  .pezzi button:hover, .pezzi button.attiva { background: var(--blu); border-color: var(--blu); color: #fff; }
+  .esploso .nota.n2 { right: calc(var(--lato) + 30px); top: 128px; transform: rotate(4deg); }
+  @media (max-width: 860px) {
+    .esploso-testa { grid-template-columns: 1fr; }
+    .comandi input[type=range] { width: 80px; }
+    .comandi > span { display: none; }
+    .etichetta span { display: none; }
+    .etichetta strong { font-size: 16px; }
+    .esploso .nota.n2 { display: none; }
+  }
+
+  /* ===== 5. VISTE: l'occhiale segue il mouse, le parole lo fanno girare ===== */
+  .viste { padding: 120px var(--lato) 140px; }
+  .viste-testa { display: grid; grid-template-columns: 1fr 2.6fr; gap: 4vw; align-items: end; }
+  .viste-area {
+    position: relative; height: min(78vh, 760px); margin-top: 44px; border-radius: 36px; overflow: hidden;
+    background: var(--cobalto-notte);
+  }
+  .viste-area .palco { position: absolute; inset: 0; }
+  .parola-vista {
+    position: absolute; font-family: var(--serif); font-size: clamp(26px, 3.4vw, 50px);
+    font-variation-settings: "wght" 300, "opsz" 48; color: #fff; background: none; border: 0; cursor: pointer;
+    padding: 6px 12px; border-radius: 999px; transition: background .25s, color .25s, font-variation-settings .25s; white-space: nowrap;
+  }
+  .parola-vista:hover, .parola-vista.attiva { background: var(--ghiaccio); color: var(--blu); font-variation-settings: "wght" 600, "opsz" 48; }
+  .pv-prospettiva { left: 22px; top: 18px; }
+  .pv-alto { left: 50%; top: 18px; transform: translateX(-50%); }
+  .pv-fronte { right: 22px; top: 18px; }
+  .pv-sinistra { left: 22px; top: 50%; transform: translateY(-50%); }
+  .pv-destra { right: 22px; top: 50%; transform: translateY(-50%); }
+  .pv-basso { left: 50%; bottom: 18px; transform: translateX(-50%); }
+  .viste-stato { position: absolute; left: 26px; bottom: 26px; font-family: var(--mano); font-size: 26px; color: var(--azzurro); pointer-events: none; }
+  .prova-colore {
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin-top: 22px;
+  }
+  .prova-colore p { font-family: var(--serif); font-size: 22px; }
+  .campioni { display: flex; gap: 10px; }
+  .campioni button {
+    width: 42px; height: 42px; border-radius: 50%; border: 3px solid var(--ghiaccio); cursor: pointer;
+    outline: 2px solid transparent; transition: outline-color .2s, transform .2s;
+  }
+  .campioni button:hover { transform: scale(1.12); }
+  .campioni button.attivo { outline-color: var(--blu); }
+  .prova-colore .nome-colore { font-size: 14px; color: var(--grigio); }
+  @media (max-width: 860px) {
+    .viste-testa { grid-template-columns: 1fr; }
+    .viste-area { height: 70vh; }
+    .viste-stato { display: none; }
+    /* parole più piccole: tre in alto, tre in basso, così non si toccano e non coprono l'occhiale */
+    .parola-vista { font-size: 19px; padding: 5px 10px; }
+    .pv-prospettiva, .pv-fronte, .pv-alto { top: 14px; }
+    .pv-prospettiva, .pv-sinistra { left: 12px; }
+    .pv-fronte, .pv-destra { right: 12px; }
+    .pv-sinistra, .pv-destra, .pv-basso { top: auto; bottom: 14px; transform: none; }
+    .pv-basso { left: 50%; transform: translateX(-50%); }
+  }
+
+  /* ===== 6. PROVA TU: l'occhiale sul tuo viso, con la fotocamera ===== */
+  .prova { padding: 40px var(--lato) 140px; position: relative; }
+  .prova-testa { display: grid; grid-template-columns: 1fr 2.6fr; gap: 4vw; align-items: end; }
+  .prova-area {
+    position: relative; height: min(80vh, 760px); margin-top: 44px; border-radius: 36px; overflow: hidden;
+    background: var(--blu); color: #fff;
+  }
+  .prova-area .palco { position: absolute; inset: 0; pointer-events: none; }
+  .prova-area video, .prova-area canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .prova-area video { object-fit: cover; transform: scaleX(-1); opacity: 0; transition: opacity .5s; }
+  .prova-area.accesa video { opacity: 1; }
+  .prova-inizio {
+    position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 18px; text-align: center; padding: 24px; transition: opacity .4s;
+  }
+  .prova-area.accesa .prova-inizio { opacity: 0; pointer-events: none; }
+  .prova-inizio .grande {
+    font-family: var(--serif); font-size: clamp(30px, 4.4vw, 62px); line-height: 1; letter-spacing: -.02em;
+    font-variation-settings: "wght" 350, "opsz" 48; white-space: nowrap;
+  }
+  .prova-inizio button {
+    font-family: var(--serif); font-size: 20px; color: var(--blu); background: var(--ghiaccio);
+    border: 0; border-radius: 999px; padding: 14px 30px; cursor: pointer; transition: transform .2s, background .2s;
+  }
+  .prova-inizio button:hover { transform: scale(1.05); background: #fff; }
+  .prova-inizio button:disabled { opacity: .6; cursor: wait; transform: none; }
+  .prova-inizio .privato { font-size: 13px; color: var(--su-blu); max-width: 340px; line-height: 1.5; }
+  .prova-area .titolo-palco { position: absolute; left: 26px; top: 20px; font-family: var(--mano); font-size: 28px; color: var(--azzurro); pointer-events: none; transform: rotate(-3deg); z-index: 2; }
+  .prova-stato {
+    position: absolute; left: 50%; top: 22px; transform: translateX(-50%); z-index: 2;
+    font-family: var(--mano); font-size: 24px; color: #fff; background: var(--blu); padding: 4px 16px; border-radius: 999px;
+    opacity: 0; transition: opacity .3s; pointer-events: none; white-space: nowrap;
+  }
+  .prova-stato.visibile { opacity: 1; }
+  .prova-area .comandi { z-index: 2; opacity: 0; pointer-events: none; transition: opacity .4s; }
+  .prova-area.accesa .comandi { opacity: 1; pointer-events: auto; }
+  .prova-area .comandi input[type=range] { width: 100px; }
+  .prova-area .comandi .chiaro { background: var(--ghiaccio-scuro); color: var(--inchiostro); }
+  .prova-area .comandi .chiaro:hover { background: var(--ghiaccio); }
+  .lampo { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 3; transition: opacity .5s; }
+  .lampo.via { opacity: .85; transition: none; }
+  @media (max-width: 860px) {
+    .prova-testa { grid-template-columns: 1fr; }
+    .prova-area { height: 75vh; }
+    .prova-inizio .grande { font-size: 26px; }
+    .prova-area .comandi { gap: 8px; padding-left: 12px; }
+    .prova-area .comandi input[type=range] { width: 64px; }
+  }
+
+  /* ===== chiusura ===== */
+  footer { padding: 120px var(--lato) 36px; background: var(--blu); color: #fff; position: relative; overflow: hidden; }
+  .grazie {
+    font-family: var(--serif); font-size: clamp(64px, 12vw, 190px); line-height: .95; letter-spacing: -.03em; display: inline-block;
+  }
+  .crediti { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4vw; margin-top: 70px; max-width: 900px; }
+  .crediti p:first-child { font-family: var(--serif); color: var(--azzurro); font-size: 18px; margin-bottom: 4px; }
+  .crediti p { font-size: 15px; line-height: 1.5; }
+  footer .fine { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 90px; font-size: 14px; color: var(--su-blu); }
+  footer .fine a { color: #fff; border-bottom: 2px solid var(--azzurro); }
+  footer .adesivo { position: absolute; right: 10vw; top: 90px; transform: rotate(-8deg); background: var(--azzurro); color: var(--inchiostro); }
+  @media (max-width: 760px) { .crediti { grid-template-columns: 1fr; } footer .adesivo { display: none; } }
+</style>
 </head>
 <body>
-  <div class="container-fluid">
-        <div class="row pt-4 pb-5 mb-5 align-items-center">
-            <div class="col-6 col-lg-2">
-              <a href="#"><img class="logo" src="img/logo-triennale.svg" alt="Triennale Milano"></a>
-            </div>
-            <div class="col-lg-9 nav-wrapper d-none d-lg-block">
-                <ul class="nav-list">
-                      <li class="nav-item">
-                          <a href="#" class="nav-link selected"><strong>Mostre</strong></a>
-                      </li>
-                      <li class="nav-item">
-                          <a href="#" class="nav-link">Museo del <strong>Design</strong></a>
-                      </li>
-                      <li class="nav-item">
-                          <a href="#" class="nav-link"><strong>Teatro</strong></a>
-                      </li>
-                      <li class="nav-item">
-                          <a href="#" class="nav-link"><strong>Visita</strong></a>
-                      </li>
-                </ul>
-            </div>
-            <div class="col-6 col-lg-1 d-flex justify-content-end align-items-center">
-              <button class="btn btn-cerca">Cerca</button>
-              <button class="btn btn-menu d-block d-lg-none">Menu</button>
-            </div>
-        </div>
 
-        <div class="mobile-nav-wrapper d-lg-none">
-                 <button class="btn btn-close mb-3">Close</button> 
-                <ul class="nav-list">
-                      <li class="nav-item">
-                          <a href="#" class="nav-link">Home</a>
-                      </li>
-                      <li class="nav-item">
-                          <a href="#" class="nav-link selected"><strong>Mostre</strong></a>
-                      </li>
-                      <li class="nav-item">
-                          <a href="#" class="nav-link">Museo del <strong>Design</strong></a>
-                      </li>
-                      <li class="nav-item">
-                          <a href="#" class="nav-link"><strong>Teatro</strong></a>
-                      </li>
-                      <li class="nav-item">
-                          <a href="#" class="nav-link"><strong>Visita</strong></a>
-                      </li>
-                </ul> 
-        </div>
+<div class="cursore" id="cursore" aria-hidden="true"><span id="cursore-testo"></span></div>
+
+<nav class="nav">
+  <a href="#inizio" class="autrice">Camila <em>Saravia Ruiz</em></a>
+  <ul>
+    <li><a href="#concept">Concept</a></li>
+    <li><a href="#movimento">Movimento</a></li>
+    <li><a href="#esploso">Parti</a></li>
+    <li><a href="#viste">Viste</a></li>
+    <li><a href="#prova">Prova tu</a></li>
+    <li><a href="index.html" class="torna">Galleria ↗</a></li>
+  </ul>
+</nav>
+
+<!-- 1. HERO -->
+<section class="hero" id="inizio">
+  <div class="hero-griglia">
+    <div class="hero-sinistra">
+      <div>
+        <p class="indice">Progetto — occhiale</p>
+        <p class="hero-frase">Una lente sola,<br><em>da tempia a tempia.</em></p>
+      </div>
+      <ul class="hero-info">
+        <li><span>Tipologia</span><span>Occhiale a maschera</span></li>
+        <li><span>Materiali</span><span>Lente trasparente, aste azzurre</span></li>
+        <li><span>Strumenti</span><span>Rhino, Three.js</span></li>
+        <li><span>Design</span><span>Camila Saravia Ruiz</span></li>
+      </ul>
     </div>
-
-    <div class="container-fluid content-wrapper">
-          
-          <div class="row prima-row mb-5">
-                <div class="col-12 col-sm-6 mb-3 mb-md-0">
-                    <h1 class="font-3">Luce del Nord</h1>
-                </div>
-                <div class="col-12 col-sm-5">
-                    <h2 class="font-2 color-gray font-normal">La lampada PH5 di Poul Henningsen, un oggetto da osservare nelle sue diverse configurazioni</h2>
-                </div>
-          </div>
-            
-          <div class="row mb-5 pt-3">
-              <div class="col-12 testo-colonne">
-                  La PH5 di Poul Henningsen, progettata nel 1958, è un’icona del design danese. Caratterizzata da un sistema di paralumi multipli, diffonde la luce in modo uniforme senza abbagliare. L’approccio di Henningsen in tutti i suoi progetti di illuminazione fu tecnico prima che estetico: la forma dei paralumi nasce dal calcolo di come la luce viene riflessa e schermata. La mostra racconta la lampada attraverso le sue configurazioni: le versioni pensate per l’allestimento e quelle che ogni visitatore può comporre da sé, cambiando i colori delle singole parti.
-              </div>
-          </div>
-
+    <div class="hero-scena" data-cursore="muovi il mouse">
+      <div class="palco" id="palco-hero"></div>
+      <div class="caricamento" id="caricamento">Caricamento del modello…</div>
+      <span class="adesivo lato-adesivo" id="nome-lato">fronte</span>
+      <div class="puntini-hero" id="puntini-hero"><i class="attivo"></i><i></i><i></i><i></i></div>
     </div>
+  </div>
+  <div class="hero-nome-riga">
+    <h1 class="hero-nome" data-flex="wght 250 800, wdth 100 128" data-flex-raggio="260">Orizzonte</h1>
+    <p class="nota n1">gira e si ferma su ogni lato ↑</p>
+  </div>
 
-
-    <!-- qui apriremo il div .sfondo-0 -->
-        <div class="sfondo-0">
-        <div class="container content-wrapper">
-
-            <div class="row mb-5 pt-4 pb-4 align-items-center">
-                <div class="col-8 offset-3 col-md-6 offset-md-5 col-lg-5 mt-4 offset-lg-6 bg-color-white p-4">
-                    <strong>La mostra</strong><br> Una sala, una lampada, molte versioni. La PH5 è appesa al centro e cambia configurazione durante la visita: si guarda da sotto, da lato, da lontano.
-
-                </div>
-            </div>
-        </div>
-        </div>    
-    <!-- qui si chiude .sfondo-0 -->
-
-
-    <div class="container content-wrapper">
-            
-          <div class="row mb-5 pt-3">
-              <div class="col-12 testo-2colonne">
-                  Henningsen ha progettato la PH5 per bilanciare luce diretta e indiretta, migliorando il benessere attraverso un’illuminazione confortevole, pensando soprattutto alla vita nei paesi nordici, dove la luce naturale può mancare per molti mesi. Ogni paralume ha un compito preciso: quello grande scherma la sorgente, quelli piccoli la distribuiscono verso il basso, l’anello e la calotta correggono il colore della luce. Per questo cambiare il colore di una parte cambia anche il modo in cui la lampada si legge nello spazio.
-              </div>
-          </div>
+  <div class="striscia" aria-hidden="true">
+    <div class="striscia-dentro">
+      <span>lente trasparente</span><i></i><span>aste azzurre</span><i></i><span>cerniere nascoste</span><i></i><span>sei pezzi</span><i></i><span>nessun ponte</span><i></i>
+      <span>lente trasparente</span><i></i><span>aste azzurre</span><i></i><span>cerniere nascoste</span><i></i><span>sei pezzi</span><i></i><span>nessun ponte</span><i></i>
     </div>
+  </div>
+</section>
 
-
-    <!-- qui apriremo il div .sfondo-1 -->
-     <div class="sfondo-1">
-        <div class="container content-wrapper">
-            <div class="row mb-5 pt-4 pb-4 align-items-center">
-                <div class="col-12 col-lg-6">
-                    <img class="img-fluid" src="img/ph5-dettaglio.jpg" alt="La PH5 vista da sotto, accesa">
-                </div>
-                <div class="col-9 offset-1 col-md-6 col-lg-5 mt-4 offset-lg-0">
-                    <strong>Il visualizzatore</strong><br> Più in basso trovi la lampada in 3D: puoi girarla, guardarla nelle versioni pensate per la mostra e comporre la tua, una parte alla volta.
-
-                </div>
-            </div>
-        </div>
-        </div>
-    <!-- qui si chiude .sfondo-1 -->
-
-    <!-- ===== qui inizia la sezione "In mostra" con il visualizzatore ===== -->
-    <div class="container content-wrapper sezione-configuratore">
-        <div class="row mb-4">
-            <div class="col-12 col-lg-8">
-                <p class="sovratitolo">In mostra · Luce del Nord</p>
-                <h2 class="font-3">Osserva la PH5</h2>
-            </div>
-        </div>
-        <div class="row mb-5">
-
-            <!-- PASSO 1: lo spazio per il 3D -->
-            <div class="col-12 col-lg-8">
-                <div id="visore" class="visore">
-                    <p class="visore-segnaposto">Qui arriverà il modello 3D</p>
-                    <!-- i nomi sotto i due oggetti, visibili solo in modalità Confronto -->
-                    <div class="etichette-confronto" id="etichette-confronto" hidden>
-                        <span id="etichetta-lucido">Lucido</span>
-                        <span id="etichetta-opaco">Opaco</span>
-                    </div>
-                </div>
-            </div>
-
-
-            <!-- PASSO 2: il pannello con il titolo e le opzioni da scegliere -->
-            <div class="col-12 col-lg-4 pannello">
-                <p class="sovratitolo">Poul Henningsen, 1958</p>
-                <h3 class="font-3">PH5</h3>
-                <p class="descrizione">Un sistema di paralumi multipli che diffonde la luce in modo uniforme, senza abbagliare.</p>
-
-                <!-- scelta del colore (.opzione disegna la linea sottile sopra) -->
-                <div class="opzione">
-                    <h3 class="opzione-titolo">Colore <span class="opzione-valore" id="valore-colore">Viola scuro</span></h3>
-                    <div class="campioni">
-                        <button type="button" class="campione attivo" data-color="#4B0082" data-nome="Viola scuro" aria-label="Viola scuro" aria-pressed="true"></button>
-                        <button type="button" class="campione" data-color="#FF00FF" data-nome="Magenta" aria-label="Magenta" aria-pressed="false"></button>
-                        <button type="button" class="campione" data-color="#E0218A" data-nome="Rosa Barbie" aria-label="Rosa Barbie" aria-pressed="false"></button>
-                        <button type="button" class="campione" data-color="#C8A2C8" data-nome="Lilla" aria-label="Lilla" aria-pressed="false"></button>
-                        <button type="button" class="campione" data-color="#8E4585" data-nome="Prugna" aria-label="Prugna" aria-pressed="false"></button>
-                    </div>
-                </div>
-
-                <!-- scelta della finitura -->
-                <div class="opzione">
-                    <h3 class="opzione-titolo">Finitura cuscini <span class="opzione-valore" id="valore-finitura">Lucido</span></h3>
-                    <div class="finiture">
-                        <button type="button" class="finitura attivo" data-finitura="lucido" data-nome="Lucido" aria-pressed="true">Lucido</button>
-                        <button type="button" class="finitura" data-finitura="opaco" data-nome="Opaco" aria-pressed="false">Opaco</button>
-                        <button type="button" class="finitura" data-finitura="confronto" data-nome="Lucido e opaco" aria-pressed="false">Confronto</button>
-                    </div>
-                </div>
-
-                <!-- scelta della misura -->
-                <div class="opzione">
-                    <h3 class="opzione-titolo"><label for="slider-misura">Larghezza</label> <span class="opzione-valore" id="valore-misura">75 cm</span></h3>
-                    <!-- step="5": lo slider scatta di 5 cm in 5 cm, non scorre in modo fluido -->
-                    <input type="range" class="slider-misura" id="slider-misura" min="65" max="85" step="5" value="75" list="tacche-misura">
-                    <datalist id="tacche-misura">
-                        <option value="65"></option>
-                        <option value="70"></option>
-                        <option value="75"></option>
-                        <option value="80"></option>
-                        <option value="85"></option>
-                    </datalist>
-                    <div class="slider-etichette">
-                        <span>65 cm</span>
-                        <span>85 cm</span>
-                    </div>
-                </div>
-
-                <p class="nota">Trascina per girare la seduta, usa la rotella per avvicinarti.</p>
-            </div>
-
-
-        </div>
+<!-- 2. CONCEPT -->
+<section class="concept" id="concept">
+  <span class="adesivo">niente ponte!</span>
+  <div class="concept-griglia">
+    <div>
+      <p class="indice">(01)</p>
+      <p class="piccolo">Il concept</p>
     </div>
-    <!-- ===== qui finisce la sezione "In mostra" ===== -->
-
-
-    <!-- ===== sezione aggiuntiva: gli occhiali (modello occhiali.glb) ===== -->
-    <div class="container content-wrapper sezione-configuratore sezione-occhiali">
-
-        <!-- intestazione, come nella sezione della PH5 -->
-        <div class="row mb-4">
-            <div class="col-12 col-lg-8">
-                <p class="sovratitolo">In mostra · Oggetto 3D</p>
-                <h2 class="font-3">Osserva gli occhiali</h2>
-            </div>
-        </div>
-
-        <!-- tre riquadri quadrati della stessa misura: video · modello · prospettive -->
-        <div class="row">
-
-            <!-- SINISTRA: il "video" con le stanghette che si chiudono e si riaprono -->
-            <div class="col-12 col-md-6 col-lg-4 mb-4">
-                <p class="didascalia">01 · Apertura e chiusura</p>
-                <div id="visore-video" class="visore">
-                    <p class="visore-segnaposto">Caricamento…</p>
-                    <button type="button" class="bottone-video" id="bottone-video" aria-pressed="false">Pausa</button>
-                </div>
-            </div>
-
-            <!-- CENTRO: l'occhiale normale, da girare col mouse -->
-            <div class="col-12 col-md-6 col-lg-4 mb-4">
-                <p class="didascalia">02 · Il modello</p>
-                <div id="visore-occhiali" class="visore">
-                    <p class="visore-segnaposto">Caricamento…</p>
-                </div>
-            </div>
-
-            <!-- DESTRA: le quattro prospettive (le immagini le crea il JavaScript) -->
-            <div class="col-12 col-lg-4 mb-4">
-                <p class="didascalia">03 · Le prospettive</p>
-                <div class="miniature">
-                    <figure class="miniatura" data-vista="alto"><span class="miniatura-nome">Alto</span></figure>
-                    <figure class="miniatura" data-vista="basso"><span class="miniatura-nome">Basso</span></figure>
-                    <figure class="miniatura" data-vista="sinistra"><span class="miniatura-nome">Sinistra</span></figure>
-                    <figure class="miniatura" data-vista="destra"><span class="miniatura-nome">Destra</span></figure>
-                </div>
-            </div>
-
-        </div>
-
-        <!-- sotto: testo a sinistra, le due scelte di colore a destra, tutto sulla stessa linea sottile -->
-        <div class="row mb-5 mt-2">
-            <div class="col-12 col-lg-4 pannello-occhiali">
-                <h3 class="font-3">Occhiali</h3>
-                <p class="descrizione">Componi il tuo paio, una parte alla volta. Passa il mouse sulle prospettive per vederle a colori.</p>
-                <p class="nota-occhiali">Trascina l'occhiale al centro per girarlo, usa la rotella per avvicinarti.</p>
-            </div>
-
-            <div class="col-12 col-md-6 col-lg-4 pannello-occhiali">
-                <!-- scelta del colore delle stanghette -->
-                <h3 class="opzione-titolo">Colore stanghette <span class="opzione-valore" id="valore-aste">Nero</span></h3>
-                <div class="campioni">
-                    <button type="button" class="campione-occhiali campione-aste attivo" data-color="#1C1C1C" data-nome="Nero" aria-label="Nero" aria-pressed="true"></button>
-                    <button type="button" class="campione-occhiali campione-aste" data-color="#5A3A24" data-nome="Avana" aria-label="Avana" aria-pressed="false"></button>
-                    <button type="button" class="campione-occhiali campione-aste" data-color="#24324A" data-nome="Blu notte" aria-label="Blu notte" aria-pressed="false"></button>
-                    <button type="button" class="campione-occhiali campione-aste" data-color="#34453A" data-nome="Verde bosco" aria-label="Verde bosco" aria-pressed="false"></button>
-                    <button type="button" class="campione-occhiali campione-aste" data-color="#5E2430" data-nome="Bordeaux" aria-label="Bordeaux" aria-pressed="false"></button>
-                </div>
-            </div>
-
-            <div class="col-12 col-md-6 col-lg-4 pannello-occhiali">
-                <!-- scelta del colore delle lenti: ogni lente è la versione chiara della stanghetta nella stessa posizione -->
-                <h3 class="opzione-titolo">Colore lenti <span class="opzione-valore" id="valore-lente">Grigio fumo</span></h3>
-                <div class="campioni">
-                    <button type="button" class="campione-occhiali campione-lente attivo" data-color="#7A7A78" data-nome="Grigio fumo" aria-label="Grigio fumo" aria-pressed="true"></button>
-                    <button type="button" class="campione-occhiali campione-lente" data-color="#A07A58" data-nome="Caramello" aria-label="Caramello" aria-pressed="false"></button>
-                    <button type="button" class="campione-occhiali campione-lente" data-color="#6E7F99" data-nome="Ardesia" aria-label="Ardesia" aria-pressed="false"></button>
-                    <button type="button" class="campione-occhiali campione-lente" data-color="#7F8C70" data-nome="Salvia" aria-label="Salvia" aria-pressed="false"></button>
-                    <button type="button" class="campione-occhiali campione-lente" data-color="#A9737D" data-nome="Rosa cipria" aria-label="Rosa cipria" aria-pressed="false"></button>
-                </div>
-            </div>
-        </div>
+    <p class="concept-testo rivela">
+      Volevo un occhiale che <em>non interrompesse lo sguardo</em>. Così la lente è diventata una sola
+      <span class="pastiglia vetro"></span> trasparente, curva, senza ponte, e tutto il resto le gira
+      intorno: un bordo sottile, due cerniere nascoste e le aste <span class="pastiglia"></span> azzurre.
+    </p>
+  </div>
+  <div class="concept-sotto">
+    <div class="carta rivela" tabindex="0" data-cursore="giralo">
+      <div class="carta-dentro">
+        <div class="carta-faccia davanti"><h3>la domanda</h3><span>passa sopra ↻</span></div>
+        <div class="carta-faccia dietro"><p>E se il frontale smettesse di essere due cerchi e diventasse una linea sola, come un orizzonte?</p><span>01 / 03</span></div>
+      </div>
     </div>
-    <!-- ===== qui finisce la sezione degli occhiali ===== -->
-
-
-    <!-- ===== galleria: tutti i modelli della cartella modelli_occhiali_glbxweb ===== -->
-    <div class="container content-wrapper sezione-configuratore sezione-galleria">
-
-        <div class="row mb-4 align-items-end">
-            <div class="col-12 col-lg-8">
-                <p class="sovratitolo">Galleria · <span id="galleria-numero">Modelli</span></p>
-                <h2 class="font-3">Gli occhiali della classe</h2>
-            </div>
-            <div class="col-12 col-lg-4">
-                <p class="galleria-introduzione">Apri un occhiale per girarlo in 3D, poi premi <strong>Prova</strong> per indossarlo con la fotocamera.</p>
-            </div>
-        </div>
-
-        <!-- l'indice dei modelli (le righe le crea galleria.js): niente 3D sulla pagina, solo testo -->
-        <div class="row mb-5">
-            <div class="col-12">
-                <ol class="galleria-elenco" id="galleria-elenco"></ol>
-            </div>
-        </div>
+    <div class="carta rivela" tabindex="0" data-cursore="giralo">
+      <div class="carta-dentro">
+        <div class="carta-faccia davanti"><h3>la forma</h3><span>passa sopra ↻</span></div>
+        <div class="carta-faccia dietro"><p>Una maschera avvolgente: la lente segue il viso e allarga il campo visivo ai lati.</p><span>02 / 03</span></div>
+      </div>
     </div>
+    <div class="carta rivela" tabindex="0" data-cursore="giralo">
+      <div class="carta-dentro">
+        <div class="carta-faccia davanti"><h3>il colore</h3><span>passa sopra ↻</span></div>
+        <div class="carta-faccia dietro"><p>Il trasparente lascia passare tutto; l'azzurro delle aste è l'unica nota di colore.</p><span>03 / 03</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="misure rivela">
+    In numeri: <b>140 mm</b> di larghezza, <b>57 mm</b> di lente, aste da <b>160 mm</b>
+    che si ripiegano di 88° e 82°. <em>Sei pezzi in tutto.</em>
+  </p>
+</section>
 
-    <!-- la finestra dedicata a un occhiale: è chiusa finché non clicchi un nome -->
-    <dialog class="finestra-occhiale" id="finestra-occhiale" aria-labelledby="finestra-titolo">
-        <button type="button" class="finestra-chiudi" id="finestra-chiudi" aria-label="Chiudi">
-            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        </button>
-        <div class="finestra-contenuto">
-            <!-- il 3D (il canvas lo crea galleria.js al primo clic) -->
-            <div id="visore-finestra" class="visore finestra-visore">
-                <p class="visore-segnaposto finestra-stato" id="finestra-stato"></p>
-                <!-- il suggerimento: sparisce appena tocchi il modello -->
-                <span class="suggerimento solo-modello" id="suggerimento" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" width="16" height="16"><path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3M18 3v4h-4M6 21v-4h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    Trascina per girare
-                </span>
-                <!-- PROVA: l'immagine della fotocamera (sta sotto al 3D) -->
-                <video class="prova-video" id="prova-video" playsinline muted></video>
-                <!-- in alto a sinistra: LIVE e quante persone vede la fotocamera -->
-                <div class="etichette-prova solo-prova">
-                    <span class="indicatore-live">Live</span>
-                    <span class="contatore-persone nascosto" id="contatore-persone" role="status"></span>
-                </div>
-                <!-- la foto scattata (copre il visore finché non premi "Rifai") -->
-                <img class="prova-foto" id="prova-foto" alt="La foto scattata con l'occhiale">
-                <span class="lampo" id="lampo" aria-hidden="true"></span>
-                <!-- l'otturatore -->
-                <button type="button" class="bottone-scatta solo-prova" id="bottone-scatta" aria-label="Scatta una foto"></button>
-            </div>
-            <!-- la scheda -->
-            <div class="finestra-testo">
-                <p class="finestra-etichetta" id="finestra-etichetta"></p>
-                <h3 class="finestra-titolo" id="finestra-titolo"></h3>
-                <p class="descrizione" id="finestra-descrizione"></p>
+<!-- 3. MOVIMENTO -->
+<section class="movimento" id="movimento">
+  <div class="movimento-testa">
+    <div><p class="indice">(02)</p><p class="piccolo">Come si muove</p></div>
+    <h2 class="titolo" data-flex="wght 300 750, wdth 100 82" data-flex-raggio="170">Gira, si piega, <em>torna.</em></h2>
+  </div>
+  <div class="movimento-griglia" id="griglia-movimento">
+    <div class="passi">
+      <div class="passo"><p class="indice">a.</p><h3>Di fronte, <em>niente in mezzo.</em></h3><p>La lente corre libera da una tempia all'altra.</p></div>
+      <div class="passo"><p class="indice">b.</p><h3>Tre quarti: <em>avvolge.</em></h3><p>La curvatura segue il viso e apre la vista ai lati.</p></div>
+      <div class="passo"><p class="indice">c.</p><h3>Di profilo <em>quasi sparisce.</em></h3><p>Aste sottili, cerniere nascoste nel bordo.</p></div>
+      <div class="passo"><p class="indice">d.</p><h3>Si chiude <em>in un gesto.</em></h3><p>Le aste si ripiegano una sull'altra, dietro la lente.</p></div>
+      <div class="passo"><p class="indice">e.</p><h3>E torna <em>all'orizzonte.</em></h3><p>Si riapre, pronto a guardare lontano.</p></div>
+    </div>
+    <div class="scena-fissa" data-cursore="scorri ↓">
+      <div class="palco" id="palco-scroll"></div>
+      <div class="barra-scroll"><span id="barra-scroll"></span></div>
+    </div>
+  </div>
+</section>
 
-                <!-- il bottone che accende (e spegne) la fotocamera -->
-                <button type="button" class="bottone-prova" id="bottone-prova" disabled>
-                    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-                    <span id="bottone-prova-testo">Prova</span>
-                </button>
+<!-- 4. ESPLOSO -->
+<section class="esploso" id="esploso">
+  <p class="nota n2">clicca sull'occhiale ↓</p>
+  <div class="esploso-testa">
+    <div><p class="indice">(03)</p><p class="piccolo">Le parti. Clicca per aprirlo, trascina per girarlo.</p></div>
+    <h2 class="titolo" data-flex="wght 300 750, wdth 100 82" data-flex-raggio="170">Sei pezzi,<br><em>nessuno di troppo.</em></h2>
+  </div>
+  <div class="esploso-palco" id="palco-esploso" data-cursore="clicca · trascina">
+    <svg id="linee-esploso"></svg>
+    <div class="etichette" id="etichette-esploso"></div>
+    <p class="titolo-palco">smontalo!</p>
+    <div class="comandi">
+      <span>unito</span>
+      <input type="range" id="cursore-esploso" min="0" max="100" value="0" aria-label="Quanto aprire l'occhiale">
+      <span>aperto</span>
+      <button id="bottone-esploso" type="button">apri</button>
+    </div>
+  </div>
+  <ul class="pezzi" id="legenda"></ul>
+</section>
 
-                <!-- dopo lo scatto: i tre canali, più scarica e rifai -->
-                <div class="prova-condividi solo-foto">
-                    <h4 class="condividi-titolo">Condividi la foto</h4>
-                    <div class="canali">
-                        <button type="button" class="canale canale-instagram" data-canale="instagram">Instagram <span class="canale-dettaglio">Storia o post</span></button>
-                        <button type="button" class="canale canale-whatsapp" data-canale="whatsapp">WhatsApp</button>
-                        <button type="button" class="canale canale-telegram" data-canale="telegram">Telegram</button>
-                    </div>
-                    <div class="canali">
-                        <button type="button" class="canale canale-secondario" id="bottone-scarica">Scarica</button>
-                        <button type="button" class="canale canale-secondario" id="bottone-rifai">Rifai la foto</button>
-                    </div>
-                    <!-- Instagram, passo 1: Storia o Post? -->
-                    <div class="scelta-instagram" id="scelta-instagram" hidden>
-                        <p class="pannello-titolo">Come vuoi pubblicarla su Instagram?</p>
-                        <div class="canali">
-                            <button type="button" class="canale modo-instagram" data-modo="storia">
-                                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="4 2.5"/></svg>
-                                Storia
-                            </button>
-                            <button type="button" class="canale modo-instagram" data-modo="post">
-                                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-                                Post
-                            </button>
-                        </div>
-                    </div>
-                    <!-- Instagram, passo 2 (dal computer): il QR code che manda QUESTA foto al telefono -->
-                    <div class="pannello-instagram" id="pannello-instagram" hidden>
-                        <div class="qr-instagram" id="qr-instagram" aria-hidden="true"></div>
-                        <div>
-                            <p class="pannello-titolo" id="qr-titolo">Inquadra con il telefono</p>
-                            <ol class="passi">
-                                <li>Inquadra il codice con la fotocamera del telefono</li>
-                                <li>La foto arriva sul telefono</li>
-                                <li>Tocca <strong id="qr-azione">Condividi</strong>, poi scegli Instagram</li>
-                            </ol>
-                            <p class="stato-invio" id="stato-invio" role="status"></p>
-                            <p class="nota-qr" id="nota-qr"></p>
-                        </div>
-                    </div>
-                    <p class="prova-avviso" id="prova-avviso" role="status"></p>
-                </div>
+<!-- 5. VISTE -->
+<section class="viste" id="viste">
+  <div class="viste-testa">
+    <div><p class="indice">(04)</p><p class="piccolo">Le viste. Muovi il mouse: l'occhiale ti segue. Passa su una parola per girarlo.</p></div>
+    <h2 class="titolo" data-flex="wght 300 750, wdth 100 82" data-flex-raggio="170">Guardalo <em>da ogni lato.</em></h2>
+  </div>
+  <div class="viste-area" id="area-viste" data-cursore="muovi il mouse">
+    <div class="palco" id="palco-viste"></div>
+    <button class="parola-vista pv-prospettiva" data-vista="prospettiva" type="button">prospettiva</button>
+    <button class="parola-vista pv-alto" data-vista="alto" type="button">alto</button>
+    <button class="parola-vista pv-fronte" data-vista="fronte" type="button">fronte</button>
+    <button class="parola-vista pv-sinistra" data-vista="sinistra" type="button">sinistra</button>
+    <button class="parola-vista pv-destra" data-vista="destra" type="button">destra</button>
+    <button class="parola-vista pv-basso" data-vista="basso" type="button">basso</button>
+    <p class="viste-stato" id="stato-viste">ti sto guardando…</p>
+  </div>
+  <div class="prova-colore">
+    <p>Prova un colore per le aste:</p>
+    <div class="campioni" id="campioni">
+      <button type="button" class="attivo" style="background:#7DB7E3" data-colore="#7DB7E3" data-nome="azzurro" aria-label="azzurro"></button>
+      <button type="button" style="background:#FFFFFF" data-colore="#FFFFFF" data-nome="bianco" aria-label="bianco"></button>
+      <button type="button" style="background:#DCE8F2" data-colore="#DCE8F2" data-nome="ghiaccio" aria-label="ghiaccio"></button>
+      <button type="button" style="background:#0F1E3A" data-colore="#0F1E3A" data-nome="inchiostro" aria-label="inchiostro"></button>
+      <button type="button" style="background:#9FE3D6" data-colore="#9FE3D6" data-nome="menta" aria-label="menta"></button>
+    </div>
+    <span class="nome-colore" id="nome-colore">azzurro</span>
+  </div>
+</section>
 
-                <p class="nota solo-modello">Trascina per girare il modello, usa la rotella per avvicinarti.</p>
-                <p class="nota solo-prova">Mettiti davanti alla fotocamera con il viso ben illuminato. L'immagine resta sul tuo dispositivo.</p>
-            </div>
-        </div>
-    </dialog>
+<!-- 6. PROVA TU -->
+<section class="prova" id="prova">
+  <div class="prova-testa">
+    <div><p class="indice">(05)</p><p class="piccolo">Prova tu. Accendi la fotocamera e l'occhiale si appoggia sul tuo viso.</p></div>
+    <h2 class="titolo" data-flex="wght 300 750, wdth 100 82" data-flex-raggio="170">Adesso <em>mettili tu.</em></h2>
+  </div>
+  <div class="prova-area" id="area-prova">
+    <video id="video-prova" playsinline muted></video>
+    <div class="palco" id="palco-prova"></div>
+    <p class="titolo-palco">provali!</p>
+    <p class="prova-stato" id="stato-prova">cerco il tuo viso…</p>
+    <div class="prova-inizio">
+      <p class="grande">Specchiati con Orizzonte.</p>
+      <button type="button" id="accendi-prova">accendi la fotocamera</button>
+      <p class="privato" id="nota-prova">Il video resta sul tuo computer: non viene registrato né inviato da nessuna parte.</p>
+    </div>
+    <div class="comandi">
+      <span>taglia</span>
+      <input type="range" id="taglia-prova" min="80" max="125" value="100" aria-label="Taglia dell'occhiale">
+      <span>altezza</span>
+      <input type="range" id="altezza-prova" min="-12" max="12" value="0" aria-label="Altezza dell'occhiale sul viso">
+      <button type="button" id="scatta-prova">scatta</button>
+      <button type="button" id="spegni-prova" class="chiaro">spegni</button>
+    </div>
+    <div class="lampo" id="lampo-prova"></div>
+  </div>
+</section>
 
-    <!-- sul telefono, aperta dal QR code: la foto arriva dal computer e si condivide su Instagram -->
-    <dialog class="finestra-occhiale finestra-ricevi" id="finestra-ricevi" aria-labelledby="ricevi-titolo">
-        <div class="ricevi-contenuto">
-            <p class="finestra-etichetta" id="ricevi-etichetta">Instagram</p>
-            <h3 class="finestra-titolo" id="ricevi-titolo">La tua foto</h3>
-            <div class="ricevi-cornice">
-                <img class="ricevi-foto" id="ricevi-foto" alt="La foto scattata sul computer" hidden>
-                <p class="ricevi-stato" id="ricevi-stato" role="status">Mi collego al computer…</p>
-            </div>
-            <!-- due passaggi: 1. la foto va nella galleria  2. si apre l'app di Instagram -->
-            <ol class="passi-app" id="passi-app" hidden>
-                <li class="passo-app" id="passo-salva">
-                    <span class="passo-numero">1</span>
-                    <button type="button" class="canale passo-bottone" id="ricevi-salva">Salva la foto</button>
-                    <span class="passo-spiegazione" id="spiegazione-salva"></span>
-                </li>
-                <li class="passo-app" id="passo-apri">
-                    <span class="passo-numero">2</span>
-                    <button type="button" class="bottone-prova ricevi-condividi passo-bottone" id="ricevi-apri">Apri Instagram</button>
-                    <span class="passo-spiegazione" id="spiegazione-apri"></span>
-                </li>
-            </ol>
-            <p class="nota" id="ricevi-nota"></p>
-            <div class="canali ricevi-altro">
-                <button type="button" class="canale canale-secondario" id="ricevi-condividi" hidden>Altre app</button>
-                <button type="button" class="canale canale-secondario" id="ricevi-chiudi">Chiudi</button>
-            </div>
-        </div>
-    </dialog>
-    <!-- ===== qui finisce la galleria ===== -->
+<footer>
+  <span class="adesivo">fine :)</span>
+  <div class="grazie" data-flex="wght 250 800, wdth 100 82" data-flex-raggio="240">Grazie.</div>
+  <div class="crediti">
+    <div><p>Progetto</p><p>Orizzonte, occhiale a maschera</p></div>
+    <div><p>Design e modello 3D</p><p>Camila Saravia Ruiz</p></div>
+    <div><p>Corso</p><p>Laboratorio Web</p></div>
+  </div>
+  <div class="fine">
+    <span>© Camila Saravia Ruiz</span>
+    <a href="index.html">Torna alla galleria</a>
+  </div>
+</footer>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const FILE_MODELLO = 'models copia/camilasaraviaruizcorretto.glb';
+
+// i colori dell'occhiale
+let coloreAste = '#7DB7E3';       // azzurro (si cambia con "prova un colore")
+const COLORE_LENTE = '#F4F9FD';   // vetro quasi incolore
+const COLORE_OMBRA = 0x0F1E3A;
+
+// le sei parti del file, con il nome da mostrare e la direzione dell'esploso.
+// Le direzioni sono nel sistema di Rhino, in millimetri:
+//   X = verso destra, Y = verso le orecchie (−Y = in avanti), Z = in alto
+const PARTI = [
+  { id: 'lente',             nome: 'la lente',          info: 'trasparente, avvolgente', dir: [0, -70, 34],   off: 60 },
+  { id: 'bordo',             nome: 'il bordo',          info: 'sostiene la lente',       dir: [0, -28, -48],  off: 55 },
+  { id: 'cerniera_sinistra', nome: 'cerniera sinistra', info: 'nascosta nel bordo',      dir: [-40, -10, 30], off: 70 },
+  { id: 'cerniera_destra',   nome: 'cerniera destra',   info: 'nascosta nel bordo',      dir: [40, -10, 30],  off: 70 },
+  { id: 'asta_sinistra',     nome: 'asta sinistra',     info: 'azzurra',                 dir: [-75, 45, -12], off: 55 },
+  { id: 'asta_destra',       nome: 'asta destra',       info: 'azzurra',                 dir: [75, 45, -12],  off: 55 }
+];
+
+const $ = (s) => document.querySelector(s);
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, t) => a + (b - a) * t;
+const morbido = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+const soloTatto = matchMedia('(hover: none)').matches;
+
+// su telefono non si può "passare sopra": le schede si girano toccandole
+if (soloTatto) document.querySelectorAll('.carta-faccia.davanti span').forEach((s) => { s.textContent = 'tocca ↻'; });
 
 
+// ===== testi che compaiono scorrendo =====
+const osservaTesti = new IntersectionObserver((voci) => {
+  voci.forEach((v) => { if (v.isIntersecting) { v.target.classList.add('dentro'); osservaTesti.unobserve(v.target); } });
+}, { threshold: 0.15 });
+document.querySelectorAll('.rivela').forEach((el) => osservaTesti.observe(el));
 
 
+// ===== il puntatore + il cursore con l'etichetta =====
+const puntatore = { x: -9999, y: -9999, attivo: false, mosso: true };
+addEventListener('pointermove', (e) => {
+  if (e.pointerType === 'touch') return;
+  puntatore.x = e.clientX; puntatore.y = e.clientY; puntatore.attivo = true; puntatore.mosso = true;
+});
+document.documentElement.addEventListener('mouseleave', () => { puntatore.attivo = false; puntatore.mosso = true; });
+addEventListener('scroll', () => { puntatore.mosso = true; }, { passive: true });
 
+const cursore = $('#cursore');
+const cursoreTesto = $('#cursore-testo');
+const posCursore = { x: 0, y: 0 };
+document.addEventListener('pointerover', (e) => {
+  const zona = e.target.closest('[data-cursore]');
+  // sopra bottoni e link il cursore resta un puntino
+  const suBottone = e.target.closest('button, a, input');
+  if (zona && !suBottone) {
+    cursoreTesto.textContent = zona.dataset.cursore;
+    cursore.classList.add('con-testo');
+  } else {
+    cursore.classList.remove('con-testo');
+  }
+});
+function aggiornaCursore() {
+  cursore.classList.toggle('visibile', puntatore.attivo);
+  posCursore.x += (puntatore.x - posCursore.x) * 0.25;
+  posCursore.y += (puntatore.y - posCursore.y) * 0.25;
+  cursore.style.transform = `translate(${posCursore.x}px, ${posCursore.y}px)`;
+}
+
+
+// ===== FONT INTERATTIVO =====
+// data-flex="wght 300 750, wdth 100 82": per ogni asse del font, valore lontano e valore vicino al cursore.
+// Ogni lettera diventa uno <span> e cambia in base alla distanza dal mouse.
+// Le righe hanno white-space: nowrap, quindi non vanno mai a capo.
+function spezzaInLettere(el) {
+  const camminatore = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  const nodi = [];
+  while (camminatore.nextNode()) nodi.push(camminatore.currentNode);
+  nodi.forEach((nodo) => {
+    const frammento = document.createDocumentFragment();
+    nodo.textContent.split(/(\s+)/).forEach((pezzo) => {
+      if (!pezzo) return;
+      if (/^\s+$/.test(pezzo)) { frammento.append(' '); return; }
+      const parola = document.createElement('span');
+      parola.className = 'parola';
+      for (const ch of pezzo) {
+        const s = document.createElement('span');
+        s.className = 'c';
+        s.textContent = ch;
+        parola.append(s);
+      }
+      frammento.append(parola);
+    });
+    nodo.replaceWith(frammento);
+  });
+}
+
+function stileAssi(assi, valori) {
+  return assi.map((a, k) => `"${a.nome}" ${valori[k].toFixed(1)}`).join(', ');
+}
+
+const testiFlex = [...document.querySelectorAll('[data-flex]')].map((el) => {
+  const assi = el.dataset.flex.split(',').map((s) => {
+    const [nome, da, a] = s.trim().split(/\s+/);
+    return { nome, da: Number(da), a: Number(a) };
+  });
+  spezzaInLettere(el);
+  const base = assi.map((x) => x.da);
+  el.style.fontVariationSettings = stileAssi(assi, base);
+  const lettere = [...el.querySelectorAll('.c')].map((s) => ({ s, v: [...base], f: 0, tf: 0 }));
+  const voce = { el, assi, lettere, raggio: Number(el.dataset.flexRaggio) || 160, visibile: false, fermo: false };
+  new IntersectionObserver(([e]) => { voce.visibile = e.isIntersecting; voce.fermo = false; }).observe(el);
+  return voce;
+});
+
+function aggiornaTesti(t) {
+  testiFlex.forEach((v) => {
+    if (!v.visibile) return;
+    if (v.fermo && !puntatore.mosso && !soloTatto) return;
+
+    if (soloTatto) {
+      // su telefono non c'è il mouse: un'onda lenta che attraversa la parola
+      v.lettere.forEach((l, i) => { l.tf = (0.5 + 0.5 * Math.sin(t * 1.3 - i * 0.45)) * 0.5; });
+    } else {
+      const r = v.el.getBoundingClientRect();
+      const lontano = !puntatore.attivo ||
+        puntatore.x < r.left - v.raggio || puntatore.x > r.right + v.raggio ||
+        puntatore.y < r.top - v.raggio || puntatore.y > r.bottom + v.raggio;
+      if (lontano) {
+        v.lettere.forEach((l) => { l.tf = 0; });
+      } else {
+        const rett = v.lettere.map((l) => l.s.getBoundingClientRect());   // prima tutte le letture...
+        v.lettere.forEach((l, i) => {
+          const c = rett[i];
+          const d = Math.hypot(puntatore.x - (c.left + c.width / 2), puntatore.y - (c.top + c.height / 2));
+          l.tf = morbido(0, 1, 1 - d / v.raggio);
+        });
+      }
+    }
+
+    // ...poi tutte le scritture, con un po' di morbidezza
+    let ancoraInMoto = false;
+    v.lettere.forEach((l) => {
+      const nf = l.f + (l.tf - l.f) * 0.16;
+      if (Math.abs(nf - l.f) > 0.002) {
+        ancoraInMoto = true;
+        l.f = nf;
+        v.assi.forEach((a, k) => { l.v[k] = lerp(a.da, a.a, l.f); });
+        l.s.style.fontVariationSettings = stileAssi(v.assi, l.v);
+      }
+    });
+    v.fermo = !ancoraInMoto;
+  });
+  puntatore.mosso = false;
+}
+
+
+// ===== strumenti comuni per il 3D =====
+
+function creaRenderer(opzioni = {}) {
+  const r = new THREE.WebGLRenderer({ antialias: true, alpha: true, ...opzioni });
+  r.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  r.outputColorSpace = THREE.SRGBColorSpace;
+  r.toneMapping = THREE.NeutralToneMapping;
+  r.shadowMap.enabled = true;
+  r.shadowMap.type = THREE.PCFSoftShadowMap;
+  return r;
+}
+
+// luci da studio; 'blu' = per i riquadri blu (più luce di taglio da dietro)
+function preparaScena(renderer, tema) {
+  const scena = new THREE.Scene();
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scena.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  scena.environmentIntensity = 0.95;
+
+  const chiave = new THREE.DirectionalLight(0xffffff, 2.0);
+  chiave.position.set(-1.2, 4, 1.6);
+  chiave.castShadow = true;
+  chiave.shadow.mapSize.set(2048, 2048);
+  chiave.shadow.radius = 6;
+  chiave.shadow.camera.left = chiave.shadow.camera.bottom = -1.2;
+  chiave.shadow.camera.right = chiave.shadow.camera.top = 1.2;
+  const taglio = new THREE.DirectionalLight(0xffffff, tema === 'blu' ? 2.2 : 0.9);
+  taglio.position.set(3, 2.5, -4);
+  scena.add(chiave, taglio, new THREE.AmbientLight(0xffffff, tema === 'blu' ? 0.4 : 0.45));
+  return scena;
+}
+
+// un pavimento invisibile che mostra solo l'ombra dell'occhiale
+function aggiungiPavimento(scena, y, opacita = 0.16) {
+  const pavimento = new THREE.Mesh(
+    new THREE.PlaneGeometry(10, 10),
+    new THREE.ShadowMaterial({ color: COLORE_OMBRA, opacity: opacita })
+  );
+  pavimento.rotation.x = -Math.PI / 2;
+  pavimento.position.y = y;
+  pavimento.receiveShadow = true;
+  scena.add(pavimento);
+}
+
+const visori = [];
+
+// un "visore": un canvas dentro un elemento della pagina, con scena e camera.
+// Disegna solo quando è visibile sullo schermo.
+function creaVisore(palco, fov, tema = 'chiaro') {
+  const renderer = creaRenderer();
+  palco.prepend(renderer.domElement);
+  const v = {
+    palco, renderer, scena: preparaScena(renderer, tema),
+    camera: new THREE.PerspectiveCamera(fov, 1, 0.01, 50),
+    visibile: false, w: 1, h: 1, quandoCambiaMisura: null, aggiorna: null, dopo: null
+  };
+  function misura() {
+    const w = palco.clientWidth, h = palco.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h, false);
+    v.camera.aspect = w / h;
+    v.camera.updateProjectionMatrix();
+    v.w = w; v.h = h;
+    if (v.quandoCambiaMisura) v.quandoCambiaMisura();
+  }
+  new ResizeObserver(misura).observe(palco);
+  new IntersectionObserver(([e]) => { v.visibile = e.isIntersecting; }, { rootMargin: '150px' }).observe(palco);
+  misura();
+  visori.push(v);
+  return v;
+}
+
+// distanza della camera perché un oggetto "largo" rx e "alto" ry entri nell'inquadratura
+function distanzaPer(camera, rx, ry, margine = 1.15) {
+  const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  const tanH = tanV * camera.aspect;
+  return Math.max(rx / tanH, ry / tanV) * margine + rx * 0.4;
+}
+
+
+// ===== preparare una copia del modello =====
+
+const materialiAste = [];   // tutti i materiali delle aste, per cambiare colore insieme
+
+// il perno della cerniera: l'asta corre lungo Y e ruota attorno a Z (l'asse verticale di Rhino)
+function creaPerno(asta, lato) {
+  if (!asta) return null;
+  asta.geometry.computeBoundingBox();
+  const b = asta.geometry.boundingBox;
+  const x = lato === 'sinistra' ? b.min.x : b.max.x;
+  const y = b.min.y;
+  const z = (b.min.z + b.max.z) / 2;
+  const perno = new THREE.Group();
+  perno.position.set(x, y, z);
+  asta.parent.add(perno);
+  perno.add(asta);
+  asta.position.set(-x, -y, -z);
+  return perno;
+}
+
+const CHIUSURA_SINISTRA = -THREE.MathUtils.degToRad(88);
+const CHIUSURA_DESTRA = THREE.MathUtils.degToRad(82);
+function chiudiAste(perni, quanto) {
+  if (!perni) return;
+  if (perni.sinistra) perni.sinistra.rotation.z = quanto * CHIUSURA_SINISTRA;
+  if (perni.destra) perni.destra.rotation.z = quanto * CHIUSURA_DESTRA;
+}
+
+function preparaModello(originale, { cerniere }) {
+  const modello = originale.clone(true);
+  modello.traverse((o) => {
+    if (!o.isMesh) return;
+    let m;
+    if (o.material.name === 'lente') {
+      // vetro trasparente: quasi incolore, si legge grazie ai riflessi
+      m = new THREE.MeshPhysicalMaterial({
+        name: 'lente', color: COLORE_LENTE, transparent: true, opacity: 0.32,
+        roughness: 0.03, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.02,
+        side: THREE.DoubleSide, depthWrite: false
+      });
+      o.renderOrder = 2;
+    } else {
+      // aste, bordo e cerniere: acetato lucido
+      m = new THREE.MeshPhysicalMaterial({
+        name: 'aste', color: coloreAste, roughness: 0.3, metalness: 0,
+        clearcoat: 0.6, clearcoatRoughness: 0.15, side: THREE.DoubleSide
+      });
+      o.castShadow = true;
+      materialiAste.push(m);
+    }
+    m.emissive = new THREE.Color(0xffffff);   // usato per evidenziare una parte
+    m.emissiveIntensity = 0;
+    o.material = m;
+  });
+
+  const perni = cerniere ? {
+    sinistra: creaPerno(modello.getObjectByName('asta_sinistra'), 'sinistra'),
+    destra: creaPerno(modello.getObjectByName('asta_destra'), 'destra')
+  } : null;
+
+  // da millimetri a ~1 unità, centrato sull'origine
+  let box = new THREE.Box3().setFromObject(modello);
+  const misura = box.getSize(new THREE.Vector3());
+  modello.scale.multiplyScalar(1 / Math.max(misura.x, misura.y, misura.z));
+  box = new THREE.Box3().setFromObject(modello);
+  modello.position.sub(box.getCenter(new THREE.Vector3()));
+
+  const contenitore = new THREE.Group();
+  contenitore.add(modello);
+  const scatola = new THREE.Box3().setFromObject(contenitore);
+  return { oggetto: contenitore, perni, scatola };
+}
+
+
+// ===== 1. HERO: gira, si ferma 3 secondi su ogni lato, riparte (da solo) =====
+const hero = creaVisore($('#palco-hero'), 26, 'blu');
+const scenaHero = $('.hero-scena');
+let occhialiHero = null;
+hero.quandoCambiaMisura = () => { hero.dist = distanzaPer(hero.camera, 0.62, 0.55); };
+hero.quandoCambiaMisura();
+
+const PAUSA = 3;          // secondi fermo su ogni lato
+const GIRO = 2.4;         // secondi per passare al lato successivo
+// con rotazione +90° verso la camera arriva il lato sinistro dell'occhiale (asta_sinistra)
+const LATI = ['fronte', 'profilo sinistro', 'retro', 'profilo destro'];
+const nomeLato = $('#nome-lato');
+const puntiniHero = document.querySelectorAll('#puntini-hero i');
+let latoMostrato = -1;
+let inizioHero = null;
+const inclinazione = { x: 0, y: 0 };   // piccola inclinazione che segue il mouse
+
+hero.aggiorna = (t) => {
+  if (!occhialiHero) return;
+  if (inizioHero === null) inizioHero = t;
+  const tempo = t - inizioHero;
+  const passo = Math.floor(tempo / (PAUSA + GIRO));
+  const locale = tempo - passo * (PAUSA + GIRO);
+  const fermo = locale < PAUSA;
+  const avanzamento = fermo ? 0 : morbido(0, 1, (locale - PAUSA) / GIRO);
+
+  // il mouse sopra il riquadro inclina un po' l'occhiale verso di sé
+  const r = scenaHero.getBoundingClientRect();
+  const dentro = puntatore.attivo && puntatore.x > r.left && puntatore.x < r.right && puntatore.y > r.top && puntatore.y < r.bottom;
+  const mx = dentro ? ((puntatore.x - r.left) / r.width) * 2 - 1 : 0;
+  const my = dentro ? ((puntatore.y - r.top) / r.height) * 2 - 1 : 0;
+  inclinazione.x += (my * 0.25 - inclinazione.x) * 0.06;
+  inclinazione.y += (mx * 0.45 - inclinazione.y) * 0.06;
+
+  occhialiHero.oggetto.rotation.set(inclinazione.x, (passo + avanzamento) * Math.PI / 2 + inclinazione.y, 0);
+
+  // l'adesivo col nome del lato: visibile da fermo, sparisce mentre gira
+  const lato = passo % 4;
+  if (lato !== latoMostrato) {
+    latoMostrato = lato;
+    nomeLato.textContent = LATI[lato];
+    puntiniHero.forEach((p, i) => p.classList.toggle('attivo', i === lato));
+  }
+  nomeLato.classList.toggle('nascosto', !fermo);
+
+  hero.camera.position.set(0, 0.34, hero.dist);
+  hero.camera.lookAt(0, -0.03, 0);
+};
+
+
+// ===== 3. MOVIMENTO CON LO SCROLL =====
+const grigliaMovimento = $('#griglia-movimento');
+const scroll = creaVisore($('#palco-scroll'), 28);
+let occhialiScroll = null;
+scroll.quandoCambiaMisura = () => { scroll.dist = distanzaPer(scroll.camera, 0.62, 0.5); };
+scroll.quandoCambiaMisura();
+
+// i fotogrammi chiave: az = giro attorno, el = altezza, d = vicinanza, f = aste chiuse
+const CHIAVI = [
+  { p: 0.00, az: 0.00, el: 0.12, d: 1.00, f: 0 },
+  { p: 0.25, az: 0.85, el: 0.26, d: 0.90, f: 0 },
+  { p: 0.50, az: Math.PI / 2, el: 0.10, d: 0.80, f: 0 },
+  { p: 0.75, az: 2.75, el: 0.50, d: 0.88, f: 1 },
+  { p: 1.00, az: Math.PI * 2, el: 0.15, d: 1.00, f: 0 }
+];
+function campiona(p) {
+  for (let i = 0; i < CHIAVI.length - 1; i++) {
+    const a = CHIAVI[i], b = CHIAVI[i + 1];
+    if (p <= b.p) {
+      const t = morbido(a.p, b.p, p);
+      return { az: lerp(a.az, b.az, t), el: lerp(a.el, b.el, t), d: lerp(a.d, b.d, t), f: lerp(a.f, b.f, t) };
+    }
+  }
+  return { ...CHIAVI[CHIAVI.length - 1] };
+}
+const statoScroll = campiona(0);
+const barraScroll = $('#barra-scroll');
+const passi = document.querySelectorAll('.passo');
+
+scroll.aggiorna = () => {
+  if (!occhialiScroll) return;
+  const r = grigliaMovimento.getBoundingClientRect();
+  const p = clamp((window.innerHeight * 0.5 - r.top) / (r.height - window.innerHeight * 0.6), 0, 1);
+  const obiettivo = campiona(p);
+  for (const k of ['az', 'el', 'd', 'f']) statoScroll[k] += (obiettivo[k] - statoScroll[k]) * 0.09;
+
+  chiudiAste(occhialiScroll.perni, statoScroll.f);
+  const dist = scroll.dist * statoScroll.d;
+  const { az, el } = statoScroll;
+  scroll.camera.position.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).multiplyScalar(dist);
+  scroll.camera.lookAt(0, 0, 0);
+
+  barraScroll.style.width = (p * 100) + '%';
+  const attivo = Math.round(p * 4);
+  passi.forEach((el, i) => el.classList.toggle('attivo', i === attivo));
+};
+
+
+// ===== 4. ESPLOSO =====
+const palcoEsploso = $('#palco-esploso');
+const esp = creaVisore(palcoEsploso, 30, 'blu');
+esp.camera.position.set(0.8, 0.45, 1.2);
+const controlli = new OrbitControls(esp.camera, esp.renderer.domElement);
+controlli.enableZoom = false;
+controlli.enablePan = false;
+controlli.enableDamping = true;
+controlli.autoRotate = true;
+controlli.autoRotateSpeed = 0.5;
+controlli.addEventListener('start', () => { controlli.autoRotate = false; });
+esp.quandoCambiaMisura = () => {
+  esp.camera.position.setLength(distanzaPer(esp.camera, 0.95, 0.62, 1.3));
+  PARTI.forEach((p) => { p.lw = 0; });     // le etichette verranno rimisurate
+};
+esp.quandoCambiaMisura();
+
+let esplosione = 0;          // valore attuale (0 = unito, 1 = aperto)
+let esplosioneObiettivo = 0;
+let parteSopra = null;
+let parteLegenda = null;
+const partiEsploso = [];
+const cursoreEsploso = $('#cursore-esploso');
+const bottoneEsploso = $('#bottone-esploso');
+const svg = $('#linee-esploso');
+const contEtichette = $('#etichette-esploso');
+const legenda = $('#legenda');
+const NS = 'http://www.w3.org/2000/svg';
+
+function impostaEsplosione(valore) {
+  esplosioneObiettivo = clamp(valore, 0, 1);
+  cursoreEsploso.value = Math.round(esplosioneObiettivo * 100);
+  bottoneEsploso.textContent = esplosioneObiettivo > 0.5 ? 'richiudi' : 'apri';
+}
+cursoreEsploso.addEventListener('input', () => impostaEsplosione(cursoreEsploso.value / 100));
+bottoneEsploso.addEventListener('click', () => impostaEsplosione(esplosioneObiettivo > 0.5 ? 0 : 1));
+
+PARTI.forEach((parte) => {
+  const li = document.createElement('li');
+  li.innerHTML = `<button type="button">${parte.nome}</button>`;
+  const bottone = li.firstElementChild;
+  bottone.addEventListener('mouseenter', () => { parteLegenda = parte.id; });
+  bottone.addEventListener('mouseleave', () => { parteLegenda = null; });
+  bottone.addEventListener('focus', () => { parteLegenda = parte.id; });
+  bottone.addEventListener('blur', () => { parteLegenda = null; });
+  bottone.addEventListener('click', () => impostaEsplosione(1));
+  legenda.appendChild(li);
+  parte.bottone = bottone;
+
+  const etichetta = document.createElement('div');
+  etichetta.className = 'etichetta';
+  etichetta.innerHTML = `<strong>${parte.nome}</strong><span>${parte.info}</span>`;
+  contEtichette.appendChild(etichetta);
+  parte.etichetta = etichetta;
+  parte.info_el = etichetta.querySelector('span');
+
+  const g = document.createElementNS(NS, 'g');
+  const linea = document.createElementNS(NS, 'line');
+  const punto = document.createElementNS(NS, 'circle');
+  punto.setAttribute('r', '3.5');
+  g.append(linea, punto);
+  svg.appendChild(g);
+  parte.gruppoSvg = g; parte.linea = linea; parte.punto = punto;
+});
+document.fonts.ready.then(() => PARTI.forEach((p) => { p.lw = 0; }));
+
+const raggio = new THREE.Raycaster();
+const mouse = new THREE.Vector2(10, 10);
+let inizioClic = null;
+const canvasEsp = esp.renderer.domElement;
+canvasEsp.addEventListener('pointermove', (e) => {
+  const r = canvasEsp.getBoundingClientRect();
+  mouse.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+});
+canvasEsp.addEventListener('pointerleave', () => mouse.set(10, 10));
+canvasEsp.addEventListener('pointerdown', (e) => { inizioClic = [e.clientX, e.clientY]; });
+canvasEsp.addEventListener('pointerup', (e) => {
+  if (!inizioClic) return;
+  const mosso = Math.hypot(e.clientX - inizioClic[0], e.clientY - inizioClic[1]);
+  inizioClic = null;
+  if (mosso < 6 && parteSopra) impostaEsplosione(esplosioneObiettivo > 0.5 ? 0 : 1);
+});
+
+const vTmp = new THREE.Vector3();
+const vOrigine = new THREE.Vector3();
+esp.aggiorna = () => {
+  if (!partiEsploso.length) return;
+  esplosione += (esplosioneObiettivo - esplosione) * 0.07;
+  partiEsploso.forEach((p) => p.mesh.position.set(p.dir[0], p.dir[1], p.dir[2]).multiplyScalar(esplosione));
+  controlli.update();
+
+  esp.oggetto.updateMatrixWorld(true);
+  raggio.setFromCamera(mouse, esp.camera);
+  const colpi = raggio.intersectObjects(partiEsploso.map((p) => p.mesh), false);
+  // la lente è grande e trasparente: se il raggio colpisce anche un'altra parte, preferisci quella
+  const nonLente = colpi.find((c) => c.object.name !== 'lente');
+  const colpo = nonLente && esplosione > 0.3 ? nonLente : colpi[0];
+  parteSopra = colpo ? colpo.object.name : null;
+  palcoEsploso.classList.toggle('sopra', !!parteSopra);
+  const evidenziata = parteLegenda || parteSopra;
+
+  partiEsploso.forEach((p) => {
+    const m = p.mesh.material;
+    m.emissiveIntensity += ((p.id === evidenziata ? 0.35 : 0) - m.emissiveIntensity) * 0.15;
+  });
+};
+
+// le etichette si posizionano dopo il disegno, e restano SEMPRE dentro il riquadro
+const BORDO = 18;
+const SPAZIO_ALTO = 62;    // in alto c'è la scritta a mano
+const SPAZIO_BASSO = 80;   // in basso c'è la barra dei comandi
+esp.dopo = () => {
+  if (!partiEsploso.length) return;
+  const vis = morbido(0.45, 0.95, esplosione);
+  const evidenziata = parteLegenda || parteSopra;
+  vOrigine.set(0, 0, 0).project(esp.camera);
+  const ox = (vOrigine.x + 1) / 2 * esp.w, oy = (1 - vOrigine.y) / 2 * esp.h;
+
+  // primo giro: dove sta ogni pezzo sullo schermo
+  const voci = partiEsploso.map((p) => {
+    if (!p.lw) { p.lw = p.etichetta.offsetWidth; p.lh = p.etichetta.offsetHeight; }
+    p.mesh.localToWorld(vTmp.copy(p.centro)).project(esp.camera);
+    const x = clamp((vTmp.x + 1) / 2 * esp.w, BORDO, esp.w - BORDO);
+    const y = clamp((1 - vTmp.y) / 2 * esp.h, BORDO, esp.h - BORDO);
+    return { p, x, y };
+  });
+
+  if (esp.w < 640) {
+    // TELEFONO: il riquadro è stretto, l'occhiale occupa tutta la larghezza.
+    // Le etichette vanno in righe sopra e sotto l'occhiale, una per riga, così non si toccano mai.
+    const sopra = voci.filter((v) => v.y <= oy).sort((a, b) => a.y - b.y);
+    const sotto = voci.filter((v) => v.y > oy).sort((a, b) => a.y - b.y);
+    const riga = (v) => v.p.lh + 6;
+    let base = Math.min(...sopra.map((v) => v.y), oy) - 40;
+    for (let i = sopra.length - 1; i >= 0; i--) { base -= riga(sopra[i]); sopra[i].top = Math.max(base, SPAZIO_ALTO); }
+    let giu = Math.max(...sotto.map((v) => v.y), oy) + 40;
+    sotto.forEach((v) => { v.top = Math.min(giu, esp.h - SPAZIO_BASSO - v.p.lh); giu += riga(v); });
+    voci.forEach((v) => {
+      v.sinistra = false;
+      v.left = clamp(v.x - v.p.lw / 2, BORDO, esp.w - v.p.lw - BORDO);
+      v.x2 = clamp(v.x, v.left + 4, v.left + v.p.lw - 4);
+      v.y2 = v.y <= oy ? v.top + v.p.lh + 2 : v.top - 2;
+    });
+  } else {
+    // COMPUTER: ogni etichetta si allontana dal centro nella direzione del suo pezzo
+    voci.forEach((v) => {
+      const { p, x, y } = v;
+      let dx = x - ox, dy = y - oy;
+      const l = Math.hypot(dx, dy);
+      if (l < 2) { dx = 0; dy = -1; } else { dx /= l; dy /= l; }
+      v.sinistra = dx < 0;
+      const lx = x + dx * p.off, ly = y + dy * p.off;
+      v.left = clamp(v.sinistra ? lx - 8 - p.lw : lx + 8, BORDO, esp.w - p.lw - BORDO);
+      v.top = clamp(ly - p.lh / 2, SPAZIO_ALTO, esp.h - p.lh - SPAZIO_BASSO);
+      v.x2 = x < v.left + p.lw / 2 ? v.left - 6 : v.left + p.lw + 6;
+      v.y2 = clamp(y, v.top + 4, v.top + p.lh - 4);
+    });
+  }
+
+  // secondo giro: disegna etichette e linee
+  voci.forEach(({ p, x, y, sinistra, left, top, x2, y2 }) => {
+    const attiva = p.id === evidenziata;
+    p.etichetta.style.opacity = attiva ? 1 : vis;
+    p.etichetta.classList.toggle('attiva', attiva);
+    p.etichetta.classList.toggle('destra-allineata', sinistra);
+    p.etichetta.style.transform = `translate(${left}px, ${top}px)`;
+    p.linea.setAttribute('x1', x); p.linea.setAttribute('y1', y);
+    p.linea.setAttribute('x2', x2); p.linea.setAttribute('y2', y2);
+    p.punto.setAttribute('cx', x); p.punto.setAttribute('cy', y);
+    p.gruppoSvg.style.opacity = attiva ? 1 : vis;
+    p.gruppoSvg.classList.toggle('attiva-linea', attiva);
+    p.bottone.classList.toggle('attiva', attiva);
+  });
+};
+
+
+// ===== 5. VISTE: l'occhiale segue il mouse; sulle parole gira verso quella vista =====
+const VISTE = {
+  prospettiva: { dir: [0.85, 0.5, 1.25], up: [0, 1, 0], frase: 'tre quarti, il mio preferito' },
+  fronte:      { dir: [0, 0, 1],         up: [0, 1, 0], frase: 'dritto negli occhi' },
+  alto:        { dir: [0, 1, 0],         up: [0, 0, -1], frase: 'visto dall\'alto' },
+  basso:       { dir: [0, -1, 0],        up: [0, 0, -1], frase: 'visto da sotto' },
+  sinistra:    { dir: [-1, 0, 0],        up: [0, 1, 0], frase: 'profilo sinistro' },
+  destra:      { dir: [1, 0, 0],         up: [0, 1, 0], frase: 'profilo destro' }
+};
+
+const mTmp = new THREE.Matrix4();
+const ZERO = new THREE.Vector3();
+function quaternioneDa(dir, up) {
+  mTmp.lookAt(dir.clone().normalize(), ZERO, up);
+  return new THREE.Quaternion().setFromRotationMatrix(mTmp);
+}
+// distanza perché la scatola del modello stia tutta in quadro, guardando con quell'orientamento
+function distanzaVista(q, scatola, camera, margine) {
+  const destra = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+  const su = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
+  const verso = new THREE.Vector3(0, 0, 1).applyQuaternion(q);
+  const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  const tanH = tanV * camera.aspect;
+  let d = 0;
+  for (let i = 0; i < 8; i++) {
+    const c = new THREE.Vector3(i & 1 ? scatola.max.x : scatola.min.x, i & 2 ? scatola.max.y : scatola.min.y, i & 4 ? scatola.max.z : scatola.min.z);
+    const z = c.dot(verso);
+    d = Math.max(d, z + Math.abs(c.dot(destra)) * margine / tanH, z + Math.abs(c.dot(su)) * margine / tanV);
+  }
+  return d;
+}
+
+const areaViste = $('#area-viste');
+const statoViste = $('#stato-viste');
+const viste = creaVisore($('#palco-viste'), 26, 'blu');
+let occhialiViste = null;
+let vistaScelta = null;                 // nome della vista sotto il mouse (o toccata)
+const mouseViste = { x: 0, y: 0 };      // posizione del mouse nel riquadro, da -1 a 1
+const SU = new THREE.Vector3(0, 1, 0);
+const qObiettivo = new THREE.Quaternion();
+const vDir = new THREE.Vector3();
+let distViste = 2;
+
+areaViste.addEventListener('pointermove', (e) => {
+  const r = areaViste.getBoundingClientRect();
+  mouseViste.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+  mouseViste.y = ((e.clientY - r.top) / r.height) * 2 - 1;
+});
+areaViste.addEventListener('pointerleave', () => { mouseViste.x = 0; mouseViste.y = 0; });
+
+document.querySelectorAll('.parola-vista').forEach((b) => {
+  const scegli = () => {
+    vistaScelta = b.dataset.vista;
+    document.querySelectorAll('.parola-vista').forEach((x) => x.classList.toggle('attiva', x === b));
+    statoViste.textContent = VISTE[vistaScelta].frase;
+  };
+  const lascia = () => {
+    vistaScelta = null;
+    b.classList.remove('attiva');
+    statoViste.textContent = 'ti sto guardando…';
+  };
+  b.addEventListener('mouseenter', scegli);
+  b.addEventListener('focus', scegli);
+  b.addEventListener('mouseleave', lascia);
+  b.addEventListener('blur', lascia);
+  b.addEventListener('click', scegli);   // per il telefono
+});
+
+viste.aggiorna = () => {
+  if (!occhialiViste) return;
+  if (vistaScelta) {
+    const v = VISTE[vistaScelta];
+    qObiettivo.copy(quaternioneDa(new THREE.Vector3(...v.dir), new THREE.Vector3(...v.up)));
+  } else {
+    // l'occhiale "guarda" il mouse: la camera gira un po' nella direzione opposta
+    const yaw = 0.35 + mouseViste.x * 0.9;
+    const pitch = 0.22 - mouseViste.y * 0.6;
+    qObiettivo.copy(quaternioneDa(new THREE.Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch)), SU));
+  }
+  const dObiettivo = distanzaVista(qObiettivo, occhialiViste.scatola, viste.camera, 1.55);
+  viste.camera.quaternion.slerp(qObiettivo, 0.07);
+  distViste += (dObiettivo - distViste) * 0.07;
+  viste.camera.position.copy(vDir.set(0, 0, 1).applyQuaternion(viste.camera.quaternion).multiplyScalar(distViste));
+};
+
+// prova un colore: cambia le aste in tutte le scene insieme
+const nomeColore = $('#nome-colore');
+document.querySelectorAll('#campioni button').forEach((b) => {
+  b.addEventListener('click', () => {
+    coloreAste = b.dataset.colore;
+    materialiAste.forEach((m) => m.color.set(coloreAste));
+    document.documentElement.style.setProperty('--colore-aste', coloreAste);
+    document.querySelectorAll('#campioni button').forEach((x) => x.classList.toggle('attivo', x === b));
+    nomeColore.textContent = b.dataset.nome;
+    PARTI.forEach((p) => {
+      if (p.id.startsWith('asta')) { p.info_el.textContent = b.dataset.nome; p.lw = 0; }
+    });
+  });
+});
+
+
+// ===== 6. PROVA TU: l'occhiale sul tuo viso =====
+// MediaPipe Face Landmarker trova 478 punti del viso nel video, tutto dentro il browser
+// (il video non esce dal computer). Con pochi punti calcoliamo dove mettere l'occhiale:
+//   33 / 263  = angoli esterni degli occhi  → direzione destra-sinistra
+//   10 / 152  = fronte / mento              → direzione su-giù
+//   234 / 454 = bordi del viso              → larghezza del viso (la taglia)
+const MEDIAPIPE = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+const MODELLO_VISO = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
+
+const areaProva = $('#area-prova');
+const videoProva = $('#video-prova');
+const statoProva = $('#stato-prova');
+const bottoneAccendi = $('#accendi-prova');
+const notaProva = $('#nota-prova');
+const tagliaProva = $('#taglia-prova');
+const altezzaProva = $('#altezza-prova');
+const lampoProva = $('#lampo-prova');
+
+// un visore speciale: camera ortografica che misura in pixel, come il video
+const prova = (() => {
+  const palco = $('#palco-prova');
+  const renderer = creaRenderer({ preserveDrawingBuffer: true });   // per poter scattare la foto
+  renderer.shadowMap.enabled = false;
+  palco.appendChild(renderer.domElement);
+  const v = {
+    palco, renderer, scena: preparaScena(renderer, 'blu'),
+    camera: new THREE.OrthographicCamera(0, 1, 1, 0, 1, 20000),
+    visibile: false, w: 1, h: 1, aggiorna: null, dopo: null
+  };
+  v.camera.position.z = 10000;
+  function misura() {
+    const w = palco.clientWidth, h = palco.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h, false);
+    v.camera.right = w; v.camera.top = h;
+    v.camera.updateProjectionMatrix();
+    v.w = w; v.h = h;
+  }
+  new ResizeObserver(misura).observe(palco);
+  new IntersectionObserver(([e]) => { v.visibile = e.isIntersecting; }, { rootMargin: '150px' }).observe(palco);
+  misura();
+  visori.push(v);
+  return v;
+})();
+
+// gruppo "viso": si muove con la testa. Misure interne in "larghezze del viso".
+const visoProva = new THREE.Group();
+visoProva.visible = false;
+prova.scena.add(visoProva);
+// una testa invisibile che nasconde le aste quando passano dietro la testa
+const testaInvisibile = new THREE.Mesh(
+  new THREE.SphereGeometry(1, 32, 24),
+  new THREE.MeshBasicMaterial({ colorWrite: false })
+);
+testaInvisibile.position.set(0, -0.12, -0.62);
+testaInvisibile.scale.set(0.47, 0.7, 0.62);
+testaInvisibile.renderOrder = -1;
+visoProva.add(testaInvisibile);
+let occhialeProva = null;      // si aggiunge quando il modello è caricato
+let larghezzaLente = 1;
+
+let rilevatore = null;
+let flusso = null;
+let acceso = false;
+let ultimoFotogramma = -1;
+let ultimoViso = -1e9;
+let primaPosa = true;
+const posaObiettivo = { pos: new THREE.Vector3(), q: new THREE.Quaternion(), larghezza: 1 };
+const asseX = new THREE.Vector3(), asseY = new THREE.Vector3(), asseZ = new THREE.Vector3();
+const mBase = new THREE.Matrix4();
+
+async function caricaRilevatore() {
+  if (rilevatore) return rilevatore;
+  const { FilesetResolver, FaceLandmarker } = await import(`${MEDIAPIPE}/vision_bundle.mjs`);
+  const file = await FilesetResolver.forVisionTasks(`${MEDIAPIPE}/wasm`);
+  const opzioni = (delegate) => ({
+    baseOptions: { modelAssetPath: MODELLO_VISO, delegate },
+    runningMode: 'VIDEO', numFaces: 1
+  });
+  try { rilevatore = await FaceLandmarker.createFromOptions(file, opzioni('GPU')); }
+  catch { rilevatore = await FaceLandmarker.createFromOptions(file, opzioni('CPU')); }
+  return rilevatore;
+}
+
+async function accendiProva() {
+  bottoneAccendi.disabled = true;
+  bottoneAccendi.textContent = 'un attimo…';
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('niente fotocamera');
+    const [stream] = await Promise.all([
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false }),
+      caricaRilevatore()
+    ]);
+    flusso = stream;
+    videoProva.srcObject = stream;
+    await videoProva.play();
+    acceso = true;
+    primaPosa = true;
+    areaProva.classList.add('accesa');
+    bottoneAccendi.textContent = 'accendi la fotocamera';
+  } catch (errore) {
+    console.error(errore);
+    if (flusso) { flusso.getTracks().forEach((t) => t.stop()); flusso = null; }
+    notaProva.textContent = errore && errore.name === 'NotAllowedError'
+      ? 'Serve il permesso per la fotocamera: attivalo dal lucchetto vicino all\'indirizzo e riprova.'
+      : 'Non riesco ad accendere la fotocamera. Apri la pagina con Live Server (http://localhost…) e riprova.';
+    bottoneAccendi.textContent = 'riprova';
+  }
+  bottoneAccendi.disabled = false;
+}
+
+function spegniProva() {
+  if (flusso) flusso.getTracks().forEach((t) => t.stop());
+  flusso = null;
+  videoProva.srcObject = null;
+  acceso = false;
+  visoProva.visible = false;
+  areaProva.classList.remove('accesa');
+  statoProva.classList.remove('visibile');
+}
+
+// da punto di MediaPipe (0..1, video non specchiato) a pixel del riquadro, specchiato come uno specchio
+function puntoViso(p, out) {
+  const vw = videoProva.videoWidth, vh = videoProva.videoHeight;
+  const s = Math.max(prova.w / vw, prova.h / vh);
+  const ox = (prova.w - vw * s) / 2, oy = (prova.h - vh * s) / 2;
+  return out.set(ox + (1 - p.x) * vw * s, prova.h - (oy + p.y * vh * s), -p.z * vw * s);
+}
+
+const pA = new THREE.Vector3(), pB = new THREE.Vector3(), pC = new THREE.Vector3(), pD = new THREE.Vector3();
+function calcolaPosa(punti) {
+  // destra-sinistra (nello specchio l'occhio 33 sta a destra)
+  asseX.subVectors(puntoViso(punti[33], pA), puntoViso(punti[263], pB)).normalize();
+  // su-giù, reso perpendicolare
+  asseY.subVectors(puntoViso(punti[10], pC), puntoViso(punti[152], pD));
+  asseY.addScaledVector(asseX, -asseY.dot(asseX)).normalize();
+  asseZ.crossVectors(asseX, asseY);
+  mBase.makeBasis(asseX, asseY, asseZ);
+  posaObiettivo.q.setFromRotationMatrix(mBase);
+  // larghezza del viso
+  posaObiettivo.larghezza = puntoViso(punti[234], pA).distanceTo(puntoViso(punti[454], pB));
+  // centro: in mezzo ai quattro angoli degli occhi
+  posaObiettivo.pos.set(0, 0, 0);
+  [33, 133, 263, 362].forEach((i) => posaObiettivo.pos.add(puntoViso(punti[i], pA)));
+  posaObiettivo.pos.multiplyScalar(0.25);
+}
+
+prova.aggiorna = () => {
+  if (!acceso || !rilevatore || videoProva.readyState < 2) return;
+  if (videoProva.currentTime !== ultimoFotogramma) {
+    ultimoFotogramma = videoProva.currentTime;
+    const risultato = rilevatore.detectForVideo(videoProva, performance.now());
+    const punti = risultato.faceLandmarks && risultato.faceLandmarks[0];
+    if (punti) { calcolaPosa(punti); ultimoViso = performance.now(); }
+  }
+  const trovato = performance.now() - ultimoViso < 400;
+  statoProva.classList.toggle('visibile', !trovato);
+  visoProva.visible = trovato && !!occhialeProva;
+  if (!trovato) { primaPosa = true; return; }
+
+  // movimento morbido, così l'occhiale non trema
+  const k = primaPosa ? 1 : 0.5;
+  primaPosa = false;
+  visoProva.position.lerp(posaObiettivo.pos, k);
+  visoProva.quaternion.slerp(posaObiettivo.q, k);
+  visoProva.scale.setScalar(lerp(visoProva.scale.x, posaObiettivo.larghezza, k));
+
+  if (occhialeProva) {
+    const taglia = tagliaProva.value / 100;
+    occhialeProva.scale.setScalar((0.95 * taglia) / larghezzaLente);
+    occhialeProva.position.set(0, altezzaProva.value / 100, 0.08);
+  }
+};
+
+// una foto: video specchiato + occhiale, scaricata come immagine
+function scattaProva() {
+  if (!acceso) return;
+  const tela = prova.renderer.domElement;
+  const c = document.createElement('canvas');
+  c.width = tela.width; c.height = tela.height;
+  const g = c.getContext('2d');
+  const vw = videoProva.videoWidth, vh = videoProva.videoHeight;
+  const s = Math.max(c.width / vw, c.height / vh);
+  g.save();
+  g.translate(c.width, 0);
+  g.scale(-1, 1);
+  g.drawImage(videoProva, (c.width - vw * s) / 2, (c.height - vh * s) / 2, vw * s, vh * s);
+  g.restore();
+  g.drawImage(tela, 0, 0);
+  c.toBlob((blob) => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'orizzonte-prova.png';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  });
+  lampoProva.classList.add('via');
+  requestAnimationFrame(() => requestAnimationFrame(() => lampoProva.classList.remove('via')));
+}
+
+bottoneAccendi.addEventListener('click', accendiProva);
+$('#spegni-prova').addEventListener('click', spegniProva);
+$('#scatta-prova').addEventListener('click', scattaProva);
+
+
+// ===== caricare il modello =====
+new GLTFLoader().load(FILE_MODELLO, (gltf) => {
+  const originale = gltf.scene;
+
+  occhialiHero = preparaModello(originale, { cerniere: true });
+  hero.scena.add(occhialiHero.oggetto);
+  aggiungiPavimento(hero.scena, occhialiHero.scatola.min.y - 0.002, 0.28);
+
+  occhialiScroll = preparaModello(originale, { cerniere: true });
+  scroll.scena.add(occhialiScroll.oggetto);
+  aggiungiPavimento(scroll.scena, occhialiScroll.scatola.min.y - 0.002);
+
+  const occEsp = preparaModello(originale, { cerniere: false });
+  esp.scena.add(occEsp.oggetto);
+  esp.oggetto = occEsp.oggetto;
+  PARTI.forEach((parte) => {
+    const mesh = occEsp.oggetto.getObjectByName(parte.id);
+    if (!mesh || !mesh.isMesh) return;
+    mesh.geometry.computeBoundingBox();
+    parte.mesh = mesh;
+    parte.centro = mesh.geometry.boundingBox.getCenter(new THREE.Vector3());
+    partiEsploso.push(parte);
+  });
+
+  occhialiViste = preparaModello(originale, { cerniere: false });
+  viste.scena.add(occhialiViste.oggetto);
+  viste.camera.quaternion.copy(quaternioneDa(new THREE.Vector3(...VISTE.prospettiva.dir), SU));
+
+  // prova tu: l'occhiale centrato sulla lente, così la lente cade davanti agli occhi
+  const occProva = preparaModello(originale, { cerniere: false });
+  const lenteProva = occProva.oggetto.getObjectByName('lente');
+  const boxLente = new THREE.Box3().setFromObject(lenteProva || occProva.oggetto);
+  larghezzaLente = boxLente.max.x - boxLente.min.x;
+  occProva.oggetto.children[0].position.sub(boxLente.getCenter(new THREE.Vector3()));
+  occhialeProva = occProva.oggetto;
+  visoProva.add(occhialeProva);
+
+  $('#inizio').classList.add('pronto');
+}, undefined, (errore) => {
+  console.error(errore);
+  $('#caricamento').textContent = 'Impossibile caricare il modello — apri la pagina con un server locale (es. Live Server).';
+});
+
+
+// ===== un solo ciclo di animazione per tutto =====
+const orologio = new THREE.Clock();
+function ciclo() {
+  requestAnimationFrame(ciclo);
+  const t = orologio.getElapsedTime();
+  aggiornaCursore();
+  aggiornaTesti(t);
+  visori.forEach((v) => {
+    if (!v.visibile) return;
+    if (v.aggiorna) v.aggiorna(t);
+    v.renderer.render(v.scena, v.camera);
+    if (v.dopo) v.dopo();
+  });
+}
+ciclo();
+</script>
 </body>
 </html>
